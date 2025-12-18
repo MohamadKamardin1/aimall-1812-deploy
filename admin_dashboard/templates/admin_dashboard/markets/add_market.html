@@ -1,0 +1,248 @@
+{% extends 'admin_dashboard/base.html' %}
+{% load static %}
+{% block title %}Add Market - AI Mall Admin{% endblock %}
+{% block page_title %}Add New Market{% endblock %}
+
+{% block extra_css %}
+<style>
+  .main-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+  @media (min-width: 992px) {
+    .main-container { flex-direction: row; }
+  }
+  .map-sidebar, .form-container {
+    flex: 1;
+    min-width: 0;
+  }
+  @media (min-width: 992px) {
+    .form-container { flex: 2; }
+  }
+  .coordinates-card {
+    background: #f8f9fa;
+    border-left: 4px solid #0d6efd;
+    padding: 1.25rem;
+    border-radius: 0.5rem;
+  }
+  .btn-google {
+    background-color: #4285f4;
+    color: white;
+    border: none;
+    width: 100%;
+    padding: 0.5rem 1rem;
+    font-weight: 600;
+    text-align: center;
+  }
+  .btn-google:hover {
+    background-color: #3367d6;
+    color: white;
+  }
+  .form-row {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+  .form-group {
+    flex: 1;
+    min-width: 200px;
+  }
+  .form-label {
+    display: block;
+    margin-bottom: 0.375rem;
+    font-weight: 600;
+    font-size: 0.95rem;
+  }
+  .form-control, .form-select {
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid #ced4da;
+    border-radius: 0.375rem;
+  }
+  .form-text {
+    font-size: 0.875rem;
+    color: #6c757d;
+    margin-top: 0.25rem;
+  }
+  .days-row {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-top: 0.25rem;
+  }
+  .day-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+  .day-item input {
+    margin: 0;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="main-container">
+  <!-- Google Maps Instruction -->
+  <div class="map-sidebar">
+    <div class="dashboard-card">
+      <div class="card-header">
+        <h6 class="title-medium mb-0"><i class="fas fa-map-marker-alt me-2"></i>Get Market Coordinates</h6>
+      </div>
+      <div class="card-body">
+        <a href="https://www.google.com/maps/@-6.3690,34.8888,7z" target="_blank" class="btn-google">
+          <i class="fab fa-google me-2"></i> Open Google Maps
+        </a>
+        <p class="text-muted small mt-3">
+          Right-click the exact location → Click “What’s here?” → Copy the coordinates and paste below.
+        </p>
+
+        <div class="coordinates-card mt-3">
+          <label class="form-label">Paste Coordinates</label>
+          <input
+            type="text"
+            id="coordinateInput"
+            class="form-control form-control-sm"
+            placeholder="e.g., -6.118182, 39.355143"
+            autocomplete="off"
+          />
+          <small class="form-text">Paste the full coordinate pair from Google Maps</small>
+        </div>
+
+        <!-- ✅ ONLY ONE PAIR OF HIDDEN INPUTS – INSIDE FORM IS NOT NEEDED HERE -->
+        <!-- We'll add them inside the form below to be safe -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Form Section -->
+  <div class="form-container">
+    <div class="dashboard-card">
+      <div class="card-header">
+        <h6 class="title-medium mb-0"><i class="fas fa-store me-2"></i>Market Information</h6>
+      </div>
+      <div class="card-body">
+        <form method="post" id="marketForm">
+          {% csrf_token %}
+
+          <!-- ✅ HIDDEN COORDINATES – INSIDE THE FORM -->
+          <input type="hidden" id="id_latitude" name="latitude" value="">
+          <input type="hidden" id="id_longitude" name="longitude" value="">
+
+          <!-- Market Name -->
+          <div class="mb-3">
+            <label class="form-label">Market Name <span class="text-danger">*</span></label>
+            <input type="text" name="name" class="form-control" required>
+            <small class="form-text">Official name as shown to customers</small>
+          </div>
+
+          <!-- Location & Contact -->
+          <div class="form-row mb-3">
+            <div class="form-group">
+              <label class="form-label">Area/Location</label>
+              <input type="text" name="location" class="form-control" placeholder="e.g., Kariakoo">
+              <small class="form-text">Ward or neighborhood</small>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Contact Phone</label>
+              <input type="tel" name="contact_phone" class="form-control" placeholder="+255...">
+              <small class="form-text">For customer inquiries</small>
+            </div>
+          </div>
+
+          <!-- Address & Description -->
+          <div class="form-row mb-3">
+            <div class="form-group">
+              <label class="form-label">Full Address</label>
+              <textarea name="address" class="form-control" rows="2" placeholder="Street, building..."></textarea>
+              <small class="form-text">Complete physical address</small>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Description</label>
+              <textarea name="description" class="form-control" rows="2" placeholder="Market features..."></textarea>
+              <small class="form-text">Brief overview for customers</small>
+            </div>
+          </div>
+
+          <!-- Operating Hours -->
+          <div class="form-row mb-3">
+            <div class="form-group">
+              <label class="form-label">Opening Time</label>
+              <input type="time" name="opening_time" class="form-control" value="08:00">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Closing Time</label>
+              <input type="time" name="closing_time" class="form-control" value="18:00">
+            </div>
+          </div>
+
+          <!-- Market Days -->
+          <div class="mb-3">
+            <label class="form-label">Market Days</label>
+            <div class="days-row">
+              {% for day in all_days %}
+                <div class="day-item">
+                  <input type="checkbox" id="day_{{ day.id }}" name="market_days" value="{{ day.id }}"
+                    {% if day.day in 'monday,tuesday,wednesday,thursday,friday' %}checked{% endif %}>
+                  <label for="day_{{ day.id }}" style="margin: 0;">{{ day.get_day_display }}</label>
+                </div>
+              {% endfor %}
+            </div>
+            <small class="form-text">Select operating days</small>
+          </div>
+
+          <!-- Status -->
+          <div class="mb-4">
+            <div class="form-check form-switch" style="display: flex; align-items: center; gap: 0.5rem;">
+              <input class="form-check-input" type="checkbox" name="is_active" id="is_active" checked>
+              <label class="form-check-label" for="is_active">Active Market</label>
+            </div>
+            <small class="form-text">Inactive markets are hidden from customers</small>
+          </div>
+
+          <!-- Actions -->
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary">Save Market</button>
+            <a href="{% url 'admin_dashboard:manage-markets' %}" class="btn btn-outline-secondary">Cancel</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('coordinateInput').addEventListener('input', function(e) {
+  const input = e.target.value.trim();
+  const latField = document.getElementById('id_latitude');
+  const lngField = document.getElementById('id_longitude');
+  
+  // Reset
+  latField.value = '';
+  lngField.value = '';
+  e.target.classList.remove('is-invalid');
+
+  if (!input) return;
+
+  // Split by comma (handle space after comma)
+  const parts = input.split(',').map(p => p.trim());
+  
+  if (parts.length === 2) {
+    const lat = parseFloat(parts[0]);
+    const lng = parseFloat(parts[1]);
+    
+    if (!isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+      latField.value = lat.toFixed(6);
+      lngField.value = lng.toFixed(6);
+      return;
+    }
+  }
+  
+  // Invalid format
+  e.target.classList.add('is-invalid');
+});
+</script>
+{% endblock %}

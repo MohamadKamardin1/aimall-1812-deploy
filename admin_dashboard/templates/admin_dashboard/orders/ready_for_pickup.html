@@ -1,0 +1,857 @@
+<!-- admin_dashboard/templates/admin_dashboard/orders/ready_for_pickup.html -->
+{% extends 'admin_dashboard/base.html' %}
+{% load humanize %}
+{% load order_filters %}
+
+{% block title %}Ready for Pickup - AI Mall Admin{% endblock %}
+
+{% block page_title %}Orders Ready for Pickup{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Stats Overview -->
+    <div class="dashboard-card mb-4 animate__animated animate__fadeIn">
+        <div class="card-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="m-0 font-weight-bold text-primary">Ready for Pickup</h6>
+                    <p class="mb-0 body-small text-muted">{{ ready_orders|length }} order{{ ready_orders|length|pluralize }} waiting for driver assignment</p>
+                </div>
+                <div class="d-flex gap-2">
+                    <button onclick="assignDriversToAll()" class="btn btn-sm btn-success">
+                        <i class="fas fa-motorcycle me-1"></i> Assign All to Drivers
+                    </button>
+                    <a href="{% url 'admin_dashboard:orders-by-status' 'ready' %}" class="btn btn-sm btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-1"></i> Back to Ready Orders
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="stat-card-sm">
+                        <div class="stat-icon-sm">
+                            <i class="fas fa-box"></i>
+                        </div>
+                        <div class="stat-value-sm">{{ ready_orders|length }}</div>
+                        <div class="stat-label-sm">Ready Orders</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card-sm">
+                        <div class="stat-icon-sm">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div class="stat-value-sm">
+                            {% if ready_orders %}
+                                {% with avg_wait=ready_orders|avg_wait_time %}
+                                {{ avg_wait|floatformat:0 }}m
+                                {% endwith %}
+                            {% else %}
+                                0m
+                            {% endif %}
+                        </div>
+                        <div class="stat-label-sm">Avg. Wait Time</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card-sm">
+                        <div class="stat-icon-sm">
+                            <i class="fas fa-map-marker-alt"></i>
+                        </div>
+                        <div class="stat-value-sm">
+                            {% if markets_count %}{{ markets_count }}{% else %}0{% endif %}
+                        </div>
+                        <div class="stat-label-sm">Markets</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card-sm">
+                        <div class="stat-icon-sm">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <div class="stat-value-sm">
+                            {% if available_drivers %}{{ available_drivers }}{% else %}0{% endif %}
+                        </div>
+                        <div class="stat-label-sm">Available Drivers</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Assignment Panel -->
+    <div class="dashboard-card mb-4">
+        <div class="card-header bg-info text-white">
+            <h6 class="m-0 font-weight-bold"><i class="fas fa-bolt me-2"></i>Quick Assignment</h6>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="d-flex flex-wrap gap-3 align-items-center">
+                        <div class="form-group mb-0">
+                            <label class="form-label body-small">Select Market:</label>
+                            <select id="marketFilter" class="form-select form-select-sm" style="width: 200px;" onchange="filterByMarket()">
+                                <option value="">All Markets</option>
+                                {% for market in markets %}
+                                <option value="{{ market.id }}">{{ market.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-group mb-0">
+                            <label class="form-label body-small">Driver Type:</label>
+                            <select id="driverType" class="form-select form-select-sm" style="width: 150px;">
+                                <option value="auto">Auto Assign</option>
+                                <option value="specific">Specific Driver</option>
+                            </select>
+                        </div>
+                        <div class="form-group mb-0" id="specificDriverContainer" style="display: none;">
+                            <label class="form-label body-small">Select Driver:</label>
+                            <select id="specificDriver" class="form-select form-select-sm" style="width: 200px;">
+                                {% for driver in drivers %}
+                                <option value="{{ driver.id }}">{{ driver.user.get_full_name|default:driver.user.username }}</option>
+                                {% empty %}
+                                <option value="">No drivers available</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div>
+                            <button onclick="bulkAssign()" class="btn btn-primary mt-4">
+                                <i class="fas fa-user-plus me-1"></i> Assign Selected
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="alert alert-warning mb-0">
+                        <i class="fas fa-lightbulb me-2"></i>
+                        <strong>Tip:</strong> Group orders by market for efficient delivery routes.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Orders Table -->
+    <div class="dashboard-card animate__animated animate__fadeInUp">
+        <div class="card-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <h6 class="m-0 font-weight-bold text-primary">Orders Ready for Driver Assignment</h6>
+                <div class="d-flex gap-2">
+                    <button onclick="refreshData()" class="btn btn-sm btn-outline-primary">
+                        <i class="fas fa-sync me-1"></i> Refresh
+                    </button>
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-outline-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-download me-1"></i> Export
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="#" onclick="exportData('csv')">
+                                <i class="fas fa-file-csv me-2"></i> CSV
+                            </a></li>
+                            <li><a class="dropdown-item" href="#" onclick="exportData('excel')">
+                                <i class="fas fa-file-excel me-2"></i> Excel
+                            </a></li>
+                            <li><a class="dropdown-item" href="#" onclick="printPage()">
+                                <i class="fas fa-print me-2"></i> Print
+                            </a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th width="50">
+                                <input type="checkbox" id="selectAllReady" class="form-check-input">
+                            </th>
+                            <th>Order #</th>
+                            <th>Customer</th>
+                            <th>Items</th>
+                            <th>Amount</th>
+                            <th>Market</th>
+                            <th>Ready Since</th>
+                            <th>Wait Time</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for order in ready_orders %}
+                        <tr class="order-row" data-market="{{ order.delivery_address.market.id|default:'' }}">
+                            <td>
+                                <input type="checkbox" name="order_ids" value="{{ order.id }}" class="form-check-input ready-checkbox">
+                            </td>
+                            <td>
+                                <a href="{% url 'admin_dashboard:order-detail' order.id %}" class="text-decoration-none">
+                                    <strong class="title-medium text-primary">{{ order.order_number }}</strong>
+                                </a>
+                                <div class="body-small text-muted">
+                                    {% if order.delivery_type == 'delivery' %}
+                                    <i class="fas fa-motorcycle text-success me-1"></i>Delivery
+                                    {% else %}
+                                    <i class="fas fa-store text-info me-1"></i>Pickup
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td>
+                                <div class="title-small">{{ order.customer.customer.names|default:order.customer.phone_number }}</div>
+                                <div class="body-small text-muted">{{ order.customer.phone_number }}</div>
+                                <div class="body-small">
+                                    <i class="fas fa-map-marker-alt text-danger me-1"></i>
+                                    {{ order.delivery_address.address|truncatechars:20 }}
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge bg-primary rounded-pill">{{ order.items.count }}</span>
+                                <div class="body-small text-muted">
+                                    {% with first_item=order.items.first %}
+                                    {{ first_item.product_variant.product_template.name|truncatechars:20 }}
+                                    {% if order.items.count > 1 %} +{{ order.items.count|add:"-1" }} more{% endif %}
+                                    {% endwith %}
+                                </div>
+                            </td>
+                            <td>
+                                <div class="title-medium">TZS {{ order.total_amount|floatformat:2|intcomma }}</div>
+                                <div class="body-small text-muted">
+                                    {% if order.is_paid %}<span class="text-success">Paid</span>{% else %}<span class="text-warning">Cash on Delivery</span>{% endif %}
+                                </div>
+                            </td>
+                            <td>
+                                <span class="chip chip-primary">
+                                    <i class="fas fa-store me-1"></i>
+                                    {{ order.delivery_address.market.name|default:"Unknown"|truncatechars:15 }}
+                                </span>
+                            </td>
+                            <td>
+                                {% with ready_time=order.get_ready_time %}
+                                {% if ready_time %}
+                                <div class="title-small">{{ ready_time|date:"H:i" }}</div>
+                                <div class="body-small text-muted">{{ ready_time|date:"M d" }}</div>
+                                {% else %}
+                                <div class="body-small text-muted">Unknown</div>
+                                {% endif %}
+                                {% endwith %}
+                            </td>
+                            <td>
+                                {% with wait_minutes=order.get_wait_time_minutes %}
+                                <span class="chip {% if wait_minutes > 30 %}chip-danger{% elif wait_minutes > 15 %}chip-warning{% else %}chip-success{% endif %}">
+                                    {{ wait_minutes }}m
+                                </span>
+                                {% endwith %}
+                            </td>
+                            <td>
+                                <div class="dropdown">
+                                    <button class="btn btn-sm btn-outline-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                        <i class="fas fa-motorcycle"></i> Assign
+                                    </button>
+                                    <ul class="dropdown-menu dropdown-menu-end">
+                                        <li>
+                                            <a class="dropdown-item" href="{% url 'admin_dashboard:assign-driver' order.id %}">
+                                                <i class="fas fa-user-plus me-2"></i>Assign Driver
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a class="dropdown-item" href="#" onclick="quickAssign('{{ order.id }}')">
+                                                <i class="fas fa-bolt me-2"></i>Quick Assign
+                                            </a>
+                                        </li>
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li>
+                                            <a class="dropdown-item" href="{% url 'admin_dashboard:order-detail' order.id %}">
+                                                <i class="fas fa-eye me-2"></i>View Details
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a class="dropdown-item" href="#" onclick="notifyCustomer('{{ order.id }}')">
+                                                <i class="fas fa-bell me-2"></i>Notify Customer
+                                            </a>
+                                        </li>
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li>
+                                            <a class="dropdown-item text-warning" href="#" onclick="markAsDelayed('{{ order.id }}')">
+                                                <i class="fas fa-clock me-2"></i>Mark as Delayed
+                                            </a>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="9" class="text-center py-5">
+                                <div class="empty-state">
+                                    <i class="fas fa-motorcycle fa-3x mb-3 text-muted"></i>
+                                    <h5 class="title-medium">No Orders Ready for Pickup</h5>
+                                    <p class="body-medium text-muted">There are currently no orders waiting for driver assignment.</p>
+                                    <div class="d-flex justify-content-center gap-3 mt-3">
+                                        <a href="{% url 'admin_dashboard:orders-by-status' 'ready' %}" class="btn btn-primary">
+                                            View Ready Orders
+                                        </a>
+                                        <a href="{% url 'admin_dashboard:orders-by-status' 'preparing' %}" class="btn btn-outline-primary">
+                                            Check Preparing Orders
+                                        </a>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- Pagination -->
+        {% if ready_orders.has_other_pages %}
+        <div class="card-footer">
+            <nav aria-label="Order navigation">
+                <ul class="pagination justify-content-center mb-0">
+                    {% if ready_orders.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ ready_orders.previous_page_number }}" aria-label="Previous">
+                            <span aria-hidden="true">&laquo;</span>
+                        </a>
+                    </li>
+                    {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link">&laquo;</span>
+                    </li>
+                    {% endif %}
+                    
+                    {% for i in ready_orders.paginator.page_range %}
+                        {% if ready_orders.number == i %}
+                        <li class="page-item active"><span class="page-link">{{ i }}</span></li>
+                        {% elif i > ready_orders.number|add:'-3' and i < ready_orders.number|add:'3' %}
+                        <li class="page-item"><a class="page-link" href="?page={{ i }}">{{ i }}</a></li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if ready_orders.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ ready_orders.next_page_number }}" aria-label="Next">
+                            <span aria-hidden="true">&raquo;</span>
+                        </a>
+                    </li>
+                    {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link">&raquo;</span>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Available Drivers -->
+    {% if drivers %}
+    <div class="dashboard-card mt-4">
+        <div class="card-header bg-success text-white">
+            <h6 class="m-0 font-weight-bold"><i class="fas fa-users me-2"></i>Available Drivers</h6>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                {% for driver in drivers %}
+                <div class="col-md-4 mb-3">
+                    <div class="driver-card">
+                        <div class="d-flex align-items-center">
+                            <div class="driver-avatar me-3">
+                                <i class="fas fa-user-circle fa-2x text-primary"></i>
+                            </div>
+                            <div class="flex-grow-1">
+                                <h6 class="title-small mb-1">{{ driver.user.get_full_name|default:driver.user.username }}</h6>
+                                <div class="body-small text-muted">
+                                    <i class="fas fa-phone me-1"></i>{{ driver.phone_number|default:"No phone" }}
+                                </div>
+                                <div class="body-small">
+                                    <span class="badge bg-success">Available</span>
+                                    <span class="text-muted ms-2">
+                                        {% with assigned_count=driver.assigned_orders_count %}
+                                        {{ assigned_count }} assignment{{ assigned_count|pluralize }}
+                                        {% endwith %}
+                                    </span>
+                                </div>
+                            </div>
+                            <div>
+                                <button onclick="assignToDriver('{{ driver.id }}')" class="btn btn-sm btn-outline-success">
+                                    <i class="fas fa-motorcycle me-1"></i> Assign
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Instructions -->
+    <div class="dashboard-card mt-4">
+        <div class="card-header">
+            <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-info-circle me-2"></i>Assignment Instructions</h6>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <h6 class="title-small mb-3">Best Practices:</h6>
+                    <ul class="list-unstyled">
+                        <li class="mb-2"><i class="fas fa-check-circle text-success me-2"></i>Group orders from the same market together</li>
+                        <li class="mb-2"><i class="fas fa-check-circle text-success me-2"></i>Assign urgent orders (waiting >30min) first</li>
+                        <li class="mb-2"><i class="fas fa-check-circle text-success me-2"></i>Consider driver's current location and capacity</li>
+                        <li><i class="fas fa-check-circle text-success me-2"></i>Notify customers when driver is assigned</li>
+                    </ul>
+                </div>
+                <div class="col-md-6">
+                    <h6 class="title-small mb-3">Priority Levels:</h6>
+                    <div class="priority-list">
+                        <div class="priority-item priority-high mb-2">
+                            <span class="priority-dot"></span>
+                            <span class="priority-label">High Priority:</span>
+                            <span class="priority-desc">Waiting >30 minutes, COD orders</span>
+                        </div>
+                        <div class="priority-item priority-medium mb-2">
+                            <span class="priority-dot"></span>
+                            <span class="priority-label">Medium Priority:</span>
+                            <span class="priority-desc">Waiting 15-30 minutes</span>
+                        </div>
+                        <div class="priority-item priority-low">
+                            <span class="priority-dot"></span>
+                            <span class="priority-label">Low Priority:</span>
+                            <span class="priority-desc">Waiting <15 minutes</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Assignment Modal -->
+<div class="modal fade" id="assignmentModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title headline-small" id="assignmentModalTitle">Assign Driver</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="body-medium" id="assignmentMessage"></p>
+                <div class="alert alert-info" id="assignmentInfo" style="display: none;">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <span id="infoText"></span>
+                </div>
+                <div class="mt-3" id="driverSelection" style="display: none;">
+                    <label class="form-label">Select Driver:</label>
+                    <select id="selectedDriver" class="form-select">
+                        {% for driver in drivers %}
+                        <option value="{{ driver.id }}">{{ driver.user.get_full_name|default:driver.user.username }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="confirmAssignment">Assign</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<style>
+    .stat-card-sm {
+        text-align: center;
+        padding: 1rem;
+        background-color: var(--surface-variant);
+        border-radius: var(--border-radius);
+    }
+    
+    .stat-card-sm .stat-icon-sm {
+        font-size: 1.5rem;
+        color: var(--primary);
+        margin-bottom: 0.5rem;
+    }
+    
+    .stat-card-sm .stat-value-sm {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--primary);
+        margin-bottom: 0.25rem;
+    }
+    
+    .stat-card-sm .stat-label-sm {
+        color: var(--on-surface-variant);
+        font-size: 0.75rem;
+    }
+    
+    .driver-card {
+        padding: 1rem;
+        background-color: var(--surface-variant);
+        border-radius: var(--border-radius);
+        border-left: 4px solid var(--success);
+    }
+    
+    .priority-list {
+        padding-left: 1rem;
+    }
+    
+    .priority-item {
+        display: flex;
+        align-items: center;
+        padding: 0.5rem;
+        border-radius: var(--border-radius);
+        background-color: var(--surface-variant);
+    }
+    
+    .priority-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        margin-right: 0.5rem;
+    }
+    
+    .priority-high .priority-dot {
+        background-color: var(--danger);
+    }
+    
+    .priority-medium .priority-dot {
+        background-color: var(--warning);
+    }
+    
+    .priority-low .priority-dot {
+        background-color: var(--success);
+    }
+    
+    .priority-label {
+        font-weight: 600;
+        margin-right: 0.5rem;
+        font-size: 0.875rem;
+    }
+    
+    .priority-desc {
+        color: var(--on-surface-variant);
+        font-size: 0.875rem;
+    }
+</style>
+
+<script>
+    // DOM Ready
+    document.addEventListener('DOMContentLoaded', function() {
+        // Select all functionality
+        const selectAll = document.getElementById('selectAllReady');
+        const checkboxes = document.querySelectorAll('.ready-checkbox');
+        
+        if (selectAll) {
+            selectAll.addEventListener('change', function() {
+                checkboxes.forEach(checkbox => {
+                    checkbox.checked = this.checked;
+                });
+            });
+        }
+        
+        checkboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+                const someChecked = Array.from(checkboxes).some(cb => cb.checked);
+                
+                if (selectAll) {
+                    selectAll.checked = allChecked;
+                    selectAll.indeterminate = !allChecked && someChecked;
+                }
+            });
+        });
+        
+        // Show/hide specific driver selection
+        const driverType = document.getElementById('driverType');
+        const specificDriverContainer = document.getElementById('specificDriverContainer');
+        
+        if (driverType && specificDriverContainer) {
+            driverType.addEventListener('change', function() {
+                if (this.value === 'specific') {
+                    specificDriverContainer.style.display = 'block';
+                } else {
+                    specificDriverContainer.style.display = 'none';
+                }
+            });
+        }
+        
+        // Auto-refresh every 30 seconds
+        setInterval(refreshData, 30000);
+    });
+    
+    // Filter by market
+    function filterByMarket() {
+        const marketId = document.getElementById('marketFilter').value;
+        const rows = document.querySelectorAll('.order-row');
+        
+        rows.forEach(row => {
+            if (!marketId || row.getAttribute('data-market') === marketId) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    }
+    
+    // Get selected orders
+    function getSelectedOrders() {
+        const selected = [];
+        document.querySelectorAll('.ready-checkbox:checked').forEach(checkbox => {
+            selected.push(checkbox.value);
+        });
+        return selected;
+    }
+    
+    // Bulk assign
+    function bulkAssign() {
+        const selected = getSelectedOrders();
+        
+        if (selected.length === 0) {
+            crudHelper.showNotification('Please select at least one order', 'warning');
+            return;
+        }
+        
+        const driverType = document.getElementById('driverType').value;
+        const modal = new bootstrap.Modal(document.getElementById('assignmentModal'));
+        
+        if (driverType === 'auto') {
+            document.getElementById('assignmentModalTitle').textContent = 'Auto Assign Driver';
+            document.getElementById('assignmentMessage').textContent = 
+                `Auto-assign ${selected.length} order${selected.length > 1 ? 's' : ''} to the most suitable driver?`;
+            document.getElementById('assignmentInfo').style.display = 'block';
+            document.getElementById('infoText').textContent = 
+                'System will assign based on driver availability and proximity to markets.';
+            document.getElementById('driverSelection').style.display = 'none';
+            
+            document.getElementById('confirmAssignment').onclick = function() {
+                performBulkAssignment(selected, 'auto');
+            };
+        } else {
+            const specificDriver = document.getElementById('specificDriver').value;
+            if (!specificDriver) {
+                crudHelper.showNotification('Please select a driver', 'warning');
+                return;
+            }
+            
+            document.getElementById('assignmentModalTitle').textContent = 'Assign to Specific Driver';
+            document.getElementById('assignmentMessage').textContent = 
+                `Assign ${selected.length} order${selected.length > 1 ? 's' : ''} to selected driver?`;
+            document.getElementById('assignmentInfo').style.display = 'block';
+            document.getElementById('infoText').textContent = 
+                'Driver will receive notification for all selected orders.';
+            document.getElementById('driverSelection').style.display = 'block';
+            
+            document.getElementById('confirmAssignment').onclick = function() {
+                const driverId = document.getElementById('selectedDriver').value;
+                performBulkAssignment(selected, driverId);
+            };
+        }
+        
+        modal.show();
+    }
+    
+    // Perform bulk assignment
+    function performBulkAssignment(orderIds, driverId) {
+        window.showLoading();
+        
+        const form = document.createElement('form');
+        form.method = 'post';
+        form.action = "{% url 'admin_dashboard:bulk-assign-driver' %}";
+        
+        orderIds.forEach(id => {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'order_ids';
+            input.value = id;
+            form.appendChild(input);
+        });
+        
+        const driverInput = document.createElement('input');
+        driverInput.type = 'hidden';
+        driverInput.name = 'driver_id';
+        driverInput.value = driverId;
+        form.appendChild(driverInput);
+        
+        const csrfInput = document.createElement('input');
+        csrfInput.type = 'hidden';
+        csrfInput.name = 'csrfmiddlewaretoken';
+        csrfInput.value = '{{ csrf_token }}';
+        form.appendChild(csrfInput);
+        
+        document.body.appendChild(form);
+        form.submit();
+    }
+    
+    // Assign to all orders
+    function assignDriversToAll() {
+        const allOrders = [];
+        document.querySelectorAll('.ready-checkbox').forEach(checkbox => {
+            allOrders.push(checkbox.value);
+        });
+        
+        if (allOrders.length === 0) {
+            crudHelper.showNotification('No orders to assign', 'info');
+            return;
+        }
+        
+        if (confirm(`Assign all ${allOrders.length} orders to available drivers?`)) {
+            performBulkAssignment(allOrders, 'auto');
+        }
+    }
+    
+    // Quick assign single order
+    function quickAssign(orderId) {
+        window.showLoading();
+        
+        // Auto assign the order
+        const form = document.createElement('form');
+        form.method = 'post';
+        form.action = "{% url 'admin_dashboard:quick-assign-driver' %}";
+        
+        const orderInput = document.createElement('input');
+        orderInput.type = 'hidden';
+        orderInput.name = 'order_id';
+        orderInput.value = orderId;
+        form.appendChild(orderInput);
+        
+        const csrfInput = document.createElement('input');
+        csrfInput.type = 'hidden';
+        csrfInput.name = 'csrfmiddlewaretoken';
+        csrfInput.value = '{{ csrf_token }}';
+        form.appendChild(csrfInput);
+        
+        document.body.appendChild(form);
+        form.submit();
+    }
+    
+    // Assign to specific driver
+    function assignToDriver(driverId) {
+        const selected = getSelectedOrders();
+        
+        if (selected.length === 0) {
+            crudHelper.showNotification('Please select orders first', 'warning');
+            return;
+        }
+        
+        const modal = new bootstrap.Modal(document.getElementById('assignmentModal'));
+        document.getElementById('assignmentModalTitle').textContent = 'Assign to Driver';
+        document.getElementById('assignmentMessage').textContent = 
+            `Assign ${selected.length} order${selected.length > 1 ? 's' : ''} to this driver?`;
+        document.getElementById('assignmentInfo').style.display = 'block';
+        document.getElementById('infoText').textContent = 
+            'Driver will receive all selected orders in their delivery list.';
+        document.getElementById('driverSelection').style.display = 'none';
+        
+        document.getElementById('confirmAssignment').onclick = function() {
+            performBulkAssignment(selected, driverId);
+        };
+        
+        modal.show();
+    }
+    
+    // Notify customer
+    function notifyCustomer(orderId) {
+        window.showLoading();
+        
+        fetch("{% url 'admin_dashboard:notify-customer-pickup' %}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({ order_id: orderId })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                crudHelper.showNotification('Customer notified successfully', 'success');
+            } else {
+                crudHelper.showNotification(data.message || 'Failed to notify customer', 'error');
+            }
+            window.hideLoading();
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            crudHelper.showNotification('Failed to notify customer', 'error');
+            window.hideLoading();
+        });
+    }
+    
+    // Mark as delayed
+    function markAsDelayed(orderId) {
+        if (confirm('Mark this order as delayed? Customer will be notified.')) {
+            window.showLoading();
+            
+            const form = document.createElement('form');
+            form.method = 'post';
+            form.action = "{% url 'admin_dashboard:mark-order-delayed' %}";
+            
+            const orderInput = document.createElement('input');
+            orderInput.type = 'hidden';
+            orderInput.name = 'order_id';
+            orderInput.value = orderId;
+            form.appendChild(orderInput);
+            
+            const csrfInput = document.createElement('input');
+            csrfInput.type = 'hidden';
+            csrfInput.name = 'csrfmiddlewaretoken';
+            csrfInput.value = '{{ csrf_token }}';
+            form.appendChild(csrfInput);
+            
+            document.body.appendChild(form);
+            form.submit();
+        }
+    }
+    
+    // Refresh data
+    function refreshData() {
+        window.showLoading();
+        setTimeout(() => {
+            location.reload();
+        }, 500);
+    }
+    
+    // Export data
+    function exportData(format) {
+        window.showLoading();
+        const status = 'ready';
+        
+        if (format === 'csv') {
+            window.location.href = "{% url 'admin_dashboard:export-orders-csv' %}?status=" + status;
+        } else if (format === 'excel') {
+            window.location.href = "{% url 'admin_dashboard:export-orders-excel' %}?status=" + status;
+        }
+    }
+    
+    // Print page
+    function printPage() {
+        window.print();
+    }
+    
+    // Keyboard shortcuts
+    document.addEventListener('keydown', function(e) {
+        // Ctrl+A to select all
+        if (e.ctrlKey && e.key === 'a') {
+            e.preventDefault();
+            document.getElementById('selectAllReady').click();
+        }
+        
+        // Ctrl+Space to auto assign selected
+        if (e.ctrlKey && e.key === ' ') {
+            e.preventDefault();
+            bulkAssign();
+        }
+        
+        // F5 to refresh
+        if (e.key === 'F5') {
+            e.preventDefault();
+            refreshData();
+        }
+    });
+</script>
+{% endblock %}

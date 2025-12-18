@@ -1,0 +1,23 @@
+Verify Your Email - AIMall Driver
+==================================
+
+Welcome to AIMall Driver!
+
+To complete your account setup and start accepting deliveries, please verify your email address by clicking the link below:
+
+{{ verification_link }}
+
+What happens next?
+Once you verify your email, you'll have full access to your AIMall Driver account and can start accepting delivery orders.
+
+Questions?
+Contact us at: {{ support_email }}
+
+---
+
+© 2025 AIMall. All rights reserved.
+Visit: https://aimall.tz
+Privacy: https://aimall.tz/privacy
+Terms: https://aimall.tz/terms
+
+AIMall Driver Platform

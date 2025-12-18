@@ -1,0 +1,112 @@
+<!-- admin_dashboard/templates/admin_dashboard/products/manage_variants.html -->
+{% extends 'admin_dashboard/base.html' %}
+{% load static product_extras %}
+
+{% block title %}Variants: {{ product.name }}{% endblock %}
+{% block page_title %}Product Variants{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+  <div class="col-12">
+    <div class="d-flex justify-content-between align-items-center">
+      <div>
+        <h5 class="title-medium">Variants for "{{ product.name }}"</h5>
+        <p class="body-medium text-muted">Manage vendor-specific pricing, quality, and availability.</p>
+      </div>
+      <a href="{% url 'admin_dashboard:product-detail' product.id %}" class="btn btn-outline-secondary btn-sm">
+        <i class="fas fa-arrow-left me-1"></i> Back to Product
+      </a>
+    </div>
+  </div>
+</div>
+
+<div class="dashboard-card">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <h6 class="title-medium mb-0">Vendor Variants ({{ variants.count }})</h6>
+    <a href="{% url 'admin_dashboard:add-product-variant' product.id %}" class="btn btn-primary btn-sm">
+      <i class="fas fa-plus me-1"></i> Add Variant
+    </a>
+  </div>
+  <div class="card-body p-0">
+    {% if variants %}
+      <div class="table-responsive">
+        <table class="data-table table mb-0">
+          <thead>
+            <tr>
+              <th>Vendor</th>
+              <th>Zone</th>
+              <th>Units (Price)</th>
+              <th>Quality</th>
+              <th>Add-ons</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for v in variants %}
+            <tr>
+              <td class="title-medium">{{ v.vendor.business_name }}</td>
+              <td>{{ v.market_zone.name }}</td>
+              <td>
+                {% for unit in v.product_template.available_units.all|slice:":2" %}
+                  <div class="body-small">
+                    {{ unit.symbol }}: Tsh {{ v.unit_price_dict|get_item:unit.id|default:0|floatformat:0 }}
+                  </div>
+                {% endfor %}
+                {% if v.product_template.available_units.count > 2 %}
+                  <span class="body-small text-muted">+{{ v.product_template.available_units.count|add:"-2" }}</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if v.quality_grade %}
+                  <span class="chip chip-primary">{{ v.get_quality_grade_display }}</span>
+                {% else %}
+                  <span class="chip">—</span>
+                {% endif %}
+              </td>
+              <td>
+                {% with addon_count=v.available_addons.count %}
+                  {% if addon_count > 0 %}
+                    <span class="chip chip-success">{{ addon_count }} addon{{ addon_count|pluralize }}</span>
+                  {% else %}
+                    <span class="chip">—</span>
+                  {% endif %}
+                {% endwith %}
+              </td>
+              <td>
+                {% if v.is_active %}
+                  <span class="chip chip-success">Active</span>
+                {% else %}
+                  <span class="chip chip-error">Inactive</span>
+                {% endif %}
+              </td>
+              <td>
+                <a href="{% url 'admin_dashboard:edit-product-variant' v.id %}" class="btn btn-outline-primary btn-sm">
+                  <i class="fas fa-edit"></i>
+                </a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <i class="fas fa-box-open"></i>
+        <p>No vendor variants found.</p>
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="dashboard-card mt-4">
+  <div class="card-body">
+    <h6 class="title-small mb-2">How It Works</h6>
+    <ul class="body-medium mb-0">
+      <li>Each variant supports <strong>multiple units</strong> (kg, nusu, robo) with <strong>individual prices</strong></li>
+      <li>Vendors can offer <strong>add-ons</strong> (peeling, packaging) per product</li>
+      <li>Admins can <strong>override any price</strong> during variant creation</li>
+    </ul>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,547 @@
+<!-- admin_dashboard/templates/admin_dashboard/orders/print_invoice.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invoice #{{ order.order_number }} - AI Mall</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 20mm;
+        }
+        
+        body {
+            font-family: 'Helvetica', 'Arial', sans-serif;
+            color: #333;
+            line-height: 1.4;
+            margin: 0;
+            padding: 20px;
+            background-color: #fff;
+        }
+        
+        .invoice-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 30px;
+            border: 2px solid #2E7D32;
+            border-radius: 12px;
+            background-color: #fff;
+        }
+        
+        .invoice-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 40px;
+            padding-bottom: 20px;
+            border-bottom: 3px solid #2E7D32;
+        }
+        
+        .company-info h1 {
+            color: #2E7D32;
+            margin: 0 0 10px 0;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        
+        .company-info p {
+            margin: 5px 0;
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .invoice-details {
+            text-align: right;
+        }
+        
+        .invoice-details h2 {
+            color: #2E7D32;
+            margin: 0 0 15px 0;
+            font-size: 24px;
+        }
+        
+        .invoice-details .badge {
+            display: inline-block;
+            padding: 6px 12px;
+            background-color: #2E7D32;
+            color: white;
+            border-radius: 20px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .details-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+        
+        .detail-section {
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #2E7D32;
+        }
+        
+        .detail-section h3 {
+            color: #2E7D32;
+            margin: 0 0 15px 0;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        
+        .detail-item {
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .detail-label {
+            font-weight: 600;
+            color: #555;
+        }
+        
+        .detail-value {
+            color: #333;
+            font-weight: 500;
+        }
+        
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 30px 0;
+            background-color: #fff;
+        }
+        
+        .items-table thead {
+            background-color: #2E7D32;
+            color: white;
+        }
+        
+        .items-table th {
+            padding: 12px 15px;
+            text-align: left;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        
+        .items-table td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .items-table tbody tr:hover {
+            background-color: #f8f9fa;
+        }
+        
+        .item-name {
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .item-meta {
+            font-size: 12px;
+            color: #666;
+            margin-top: 4px;
+        }
+        
+        .text-right {
+            text-align: right;
+        }
+        
+        .text-center {
+            text-align: center;
+        }
+        
+        .total-section {
+            margin-top: 40px;
+            padding: 25px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+        }
+        
+        .total-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .total-row:last-child {
+            border-bottom: none;
+            border-top: 2px solid #2E7D32;
+            font-size: 18px;
+            font-weight: bold;
+            color: #2E7D32;
+            padding-top: 15px;
+            margin-top: 10px;
+        }
+        
+        .payment-info {
+            margin-top: 40px;
+            padding: 20px;
+            background-color: #E8F5E9;
+            border-radius: 8px;
+            border: 1px solid #2E7D32;
+        }
+        
+        .payment-status {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        
+        .payment-status.paid {
+            background-color: #4CAF50;
+            color: white;
+        }
+        
+        .payment-status.unpaid {
+            background-color: #FF9800;
+            color: white;
+        }
+        
+        .footer {
+            margin-top: 50px;
+            padding-top: 20px;
+            border-top: 2px solid #ddd;
+            text-align: center;
+            color: #666;
+            font-size: 12px;
+        }
+        
+        .qr-code {
+            text-align: center;
+            margin: 30px 0;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+        }
+        
+        .qr-placeholder {
+            width: 150px;
+            height: 150px;
+            background-color: #eee;
+            margin: 0 auto 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #999;
+            font-size: 12px;
+        }
+        
+        @media print {
+            body {
+                padding: 0;
+            }
+            
+            .invoice-container {
+                border: none;
+                padding: 0;
+            }
+            
+            .no-print {
+                display: none !important;
+            }
+            
+            .items-table {
+                page-break-inside: avoid;
+            }
+            
+            .total-section {
+                page-break-inside: avoid;
+            }
+        }
+        
+        .print-controls {
+            text-align: center;
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #ddd;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            background-color: #2E7D32;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 0 10px;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .btn:hover {
+            background-color: #1B5E20;
+        }
+        
+        .btn-secondary {
+            background-color: #6c757d;
+        }
+        
+        .btn-secondary:hover {
+            background-color: #545b62;
+        }
+    </style>
+</head>
+<body>
+    <!-- Print Controls (hidden when printing) -->
+    <div class="print-controls no-print">
+        <button onclick="window.print()" class="btn">
+            <i class="fas fa-print"></i> Print Invoice
+        </button>
+        <a href="{% url 'admin_dashboard:order-detail' order.id %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Order
+        </a>
+        <button onclick="window.close()" class="btn btn-secondary">
+            <i class="fas fa-times"></i> Close Window
+        </button>
+    </div>
+
+    <!-- Invoice Container -->
+    <div class="invoice-container">
+        <!-- Header -->
+        <div class="invoice-header">
+            <div class="company-info">
+                <h1>AI Mall Zanzibar</h1>
+                <p>Kila Kitu, Kila Mahali, Zanzibar Yetu!</p>
+                <p>Phone: +255 777 888 999</p>
+                <p>Email: orders@aimall.co.tz</p>
+                <p>Website: www.aimall.co.tz</p>
+            </div>
+            <div class="invoice-details">
+                <h2>INVOICE</h2>
+                <div class="badge">ORDER #{{ order.order_number }}</div>
+                <p><strong>Date:</strong> {{ now|date:"F d, Y" }}</p>
+                <p><strong>Time:</strong> {{ now|date:"h:i A" }}</p>
+                <p><strong>Invoice ID:</strong> INV-{{ order.order_number }}</p>
+            </div>
+        </div>
+
+        <!-- Customer & Delivery Details -->
+        <div class="details-grid">
+            <div class="detail-section">
+                <h3>BILL TO</h3>
+                <div class="detail-item">
+                    <span class="detail-label">Customer Name:</span>
+                    <span class="detail-value">{{ order.customer.customer.names|default:"N/A" }}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Phone Number:</span>
+                    <span class="detail-value">{{ order.customer.phone_number }}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Email:</span>
+                    <span class="detail-value">{{ order.customer.email|default:"Not provided" }}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Order Date:</span>
+                    <span class="detail-value">{{ order.created_at|date:"F d, Y - h:i A" }}</span>
+                </div>
+            </div>
+            
+            <div class="detail-section">
+                <h3>DELIVERY DETAILS</h3>
+                <div class="detail-item">
+                    <span class="detail-label">Delivery Address:</span>
+                    <span class="detail-value">{{ order.delivery_address.street_address }}</span>
+                </div>
+                {% if order.delivery_location_name %}
+                <div class="detail-item">
+                    <span class="detail-label">Location Name:</span>
+                    <span class="detail-value">{{ order.delivery_location_name }}</span>
+                </div>
+                {% endif %}
+                <div class="detail-item">
+                    <span class="detail-label">Delivery Date:</span>
+                    <span class="detail-value">{{ order.scheduled_delivery_date|date:"F d, Y" }}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Time Slot:</span>
+                    <span class="detail-value">{{ order.scheduled_delivery_time }}</span>
+                </div>
+                {% if order.driver %}
+                <div class="detail-item">
+                    <span class="detail-label">Driver:</span>
+                    <span class="detail-value">{{ order.driver.driver.names }} ({{ order.driver.driver.vehicle_plate }})</span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Order Items Table -->
+        <h3>ORDER ITEMS</h3>
+        <table class="items-table">
+            <thead>
+                <tr>
+                    <th>Item</th>
+                    <th>Vendor</th>
+                    <th>Unit</th>
+                    <th class="text-right">Quantity</th>
+                    <th class="text-right">Unit Price</th>
+                    <th class="text-right">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in order.items.all %}
+                <tr>
+                    <td>
+                        <div class="item-name">{{ item.product_variant.product_template.name }}</div>
+                        {% if item.special_instructions %}
+                        <div class="item-meta">
+                            <strong>Note:</strong> {{ item.special_instructions }}
+                        </div>
+                        {% endif %}
+                        {% if item.selected_addons.exists %}
+                        <div class="item-meta">
+                            <strong>Add-ons:</strong>
+                            {% for addon in item.selected_addons.all %}
+                            {{ addon.name }}{% if not forloop.last %}, {% endif %}
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </td>
+                    <td>{{ item.product_variant.vendor.business_name }}</td>
+                    <td>{{ item.measurement_unit.symbol }}</td>
+                    <td class="text-right">{{ item.quantity }}</td>
+                    <td class="text-right">TZS {{ item.unit_price|floatformat:2 }}</td>
+                    <td class="text-right">
+                        <strong>TZS {{ item.total_price|floatformat:2 }}</strong>
+                        {% if item.addons_total > 0 %}
+                        <div class="item-meta">(+TZS {{ item.addons_total|floatformat:2 }} addons)</div>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- Totals -->
+        <div class="total-section">
+            <div class="total-row">
+                <span>Items Subtotal:</span>
+                <span>TZS {{ order.items_total|floatformat:2 }}</span>
+            </div>
+            <div class="total-row">
+                <span>Delivery Fee:</span>
+                <span>TZS {{ order.delivery_fee|floatformat:2 }}</span>
+            </div>
+            {% if order.service_fee > 0 %}
+            <div class="total-row">
+                <span>Service Fee:</span>
+                <span>TZS {{ order.service_fee|floatformat:2 }}</span>
+            </div>
+            {% endif %}
+            {% if order.discount_amount > 0 %}
+            <div class="total-row">
+                <span>Discount:</span>
+                <span>- TZS {{ order.discount_amount|floatformat:2 }}</span>
+            </div>
+            {% endif %}
+            <div class="total-row">
+                <span><strong>TOTAL AMOUNT:</strong></span>
+                <span><strong>TZS {{ order.total_amount|floatformat:2 }}</strong></span>
+            </div>
+        </div>
+
+        <!-- Payment Information -->
+        <div class="payment-info">
+            <h3>PAYMENT INFORMATION</h3>
+            <div class="detail-item">
+                <span class="detail-label">Payment Method:</span>
+                <span class="detail-value">{{ order.get_payment_method_display }}</span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-label">Payment Status:</span>
+                <span class="detail-value">
+                    {% if order.is_paid %}
+                    <span class="payment-status paid">PAID</span>
+                    {% else %}
+                    <span class="payment-status unpaid">UNPAID</span>
+                    {% endif %}
+                </span>
+            </div>
+            {% if order.payment_reference %}
+            <div class="detail-item">
+                <span class="detail-label">Reference Number:</span>
+                <span class="detail-value">{{ order.payment_reference }}</span>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- QR Code for Payment (if mobile money) -->
+        {% if order.payment_method == 'mobile_money' and not order.is_paid %}
+        <div class="qr-code">
+            <h3>MOBILE MONEY PAYMENT</h3>
+            <div class="qr-placeholder">
+                [QR Code Here]<br>
+                Scan to Pay
+            </div>
+            <p><strong>Amount to Pay:</strong> TZS {{ order.total_amount|floatformat:2 }}</p>
+            <p><strong>Payment Number:</strong> +255 777 888 999</p>
+            <p><strong>Reference:</strong> {{ order.order_number }}</p>
+        </div>
+        {% endif %}
+
+        <!-- Order Notes -->
+        {% if order.cancellation_reason %}
+        <div class="payment-info" style="background-color: #FFF3CD; border-color: #FF9800;">
+            <h3>ORDER CANCELLATION</h3>
+            <p><strong>Reason:</strong> {{ order.cancellation_reason }}</p>
+            <p><strong>Cancelled on:</strong> {{ order.cancelled_at|date:"F d, Y - h:i A" }}</p>
+        </div>
+        {% endif %}
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>Thank you for shopping with AI Mall!</strong></p>
+            <p>For any inquiries, please contact our customer service at +255 777 888 999</p>
+            <p>This is a computer-generated invoice. No signature required.</p>
+            <p>Invoice generated on {{ now|date:"F d, Y - h:i A" }}</p>
+        </div>
+    </div>
+
+    <!-- Print JavaScript -->
+    <script>
+        // Auto-print if ?print=1 in URL
+        if (window.location.search.includes('print=1')) {
+            window.print();
+        }
+        
+        // Close window after printing
+        window.onafterprint = function() {
+            setTimeout(function() {
+                window.close();
+            }, 1000);
+        };
+        
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            // Ctrl+P or Cmd+P to print
+            if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
+                e.preventDefault();
+                window.print();
+            }
+            
+            // Esc to close
+            if (e.key === 'Escape') {
+                window.close();
+            }
+            
+            // F5 to refresh
+            if (e.key === 'F5') {
+                location.reload();
+            }
+        });
+    </script>
+    
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</body>
+</html>

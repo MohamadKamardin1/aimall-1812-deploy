@@ -1,0 +1,111 @@
+<!-- admin_dashboard/templates/admin_dashboard/units/manage_units.html -->
+{% extends 'admin_dashboard/base.html' %}
+{% load static %}
+
+{% block title %}Measurement Units - AI Mall Admin{% endblock %}
+{% block page_title %}Measurement Units{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+  <div class="col-md-4">
+    <div class="dashboard-card p-3">
+      <div class="title-medium">Total Units: {{ units.count }}</div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="dashboard-card p-3">
+      <div class="title-medium text-primary">Unit Types: {{ unit_types.count }}</div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="dashboard-card p-3">
+      <div class="title-medium">Active: {{ active_units_count }}</div>
+    </div>
+  </div>
+</div>
+
+<!-- Filter Bar -->
+<div class="search-filter-bar">
+  <form method="get" class="row g-3">
+    <div class="col-md-4">
+      <select name="unit_type" class="form-select">
+        <option value="">All Unit Types</option>
+        {% for ut in unit_types %}
+          <option value="{{ ut.id }}" {% if filters.unit_type == ut.id|stringformat:"s" %}selected{% endif %}>{{ ut.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2 d-flex align-items-end">
+      <button type="submit" class="btn btn-primary w-100">Filter</button>
+    </div>
+  </form>
+</div>
+
+<!-- Units Table -->
+<div class="dashboard-card">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <h6 class="title-medium mb-0">Measurement Units</h6>
+    <a href="{% url 'admin_dashboard:add-unit' %}" class="btn btn-primary btn-sm">
+      <i class="fas fa-plus me-1"></i> Add Unit
+    </a>
+  </div>
+  <div class="card-body p-0">
+    {% if units %}
+      <div class="table-responsive">
+        <table class="data-table table mb-0">
+          <thead>
+            <tr>
+              <th>Unit</th>
+              <th>Type</th>
+              <th>Symbol</th>
+              <th>Conversion</th>
+              <th>Base Unit</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for unit in units %}
+            <tr>
+              <td class="title-medium">{{ unit.name }}</td>
+              <td>{{ unit.unit_type.name }}</td>
+              <td>{{ unit.symbol }}</td>
+              <td>{{ unit.conversion_factor }}</td>
+              <td>
+                {% if unit.is_base_unit %}
+                  <span class="chip chip-success">Yes</span>
+                {% else %}
+                  <span class="chip">No</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if unit.is_active %}
+                  <span class="chip chip-success">Active</span>
+                {% else %}
+                  <span class="chip chip-error">Inactive</span>
+                {% endif %}
+              </td>
+              <td>
+                <a href="{% url 'admin_dashboard:edit-unit' unit.id %}" class="btn btn-outline-primary btn-sm me-1">
+                  <i class="fas fa-edit"></i>
+                </a>
+                <a href="#" class="btn btn-outline-danger btn-sm"
+                   onclick="crudHelper.confirmDelete('{% url 'admin_dashboard:delete-unit' unit.id %}', '{{ unit.name }}'); return false;">
+                  <i class="fas fa-trash"></i>
+                </a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <i class="fas fa-ruler-combined"></i>
+        <p>No measurement units found.</p>
+        <a href="{% url 'admin_dashboard:add-unit' %}" class="btn btn-primary mt-2">Add First Unit</a>
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

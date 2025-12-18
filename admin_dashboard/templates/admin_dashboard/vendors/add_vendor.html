@@ -1,0 +1,52 @@
+<!-- admin_dashboard/templates/admin_dashboard/vendors/add_vendor.html -->
+{% extends 'admin_dashboard/base.html' %}
+{% load static %}
+
+{% block title %}Add Vendor - AI Mall Admin{% endblock %}
+{% block page_title %}Add New Vendor{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+    <div class="dashboard-card">
+      <div class="card-header">
+        <h6 class="title-medium mb-0">Vendor Information</h6>
+      </div>
+      <div class="card-body">
+        <form method="post">
+          {% csrf_token %}
+          <div class="mb-3">
+            <label class="form-label body-medium">Full Name *</label>
+            <input type="text" name="names" class="form-control" required value="{{ data.names|default:'' }}">
+          </div>
+          <div class="mb-3">
+            <label class="form-label body-medium">Business Name *</label>
+            <input type="text" name="business_name" class="form-control" required value="{{ data.business_name|default:'' }}">
+          </div>
+          <div class="mb-3">
+            <label class="form-label body-medium">Phone Number *</label>
+            <input type="text" name="phone_number" class="form-control" required placeholder="+255..." value="{{ data.phone_number|default:'' }}">
+            <div class="form-text">Must be unique</div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label body-medium">Email</label>
+            <input type="email" name="email" class="form-control" value="{{ data.email|default:'' }}">
+          </div>
+          <div class="mb-3">
+            <label class="form-label body-medium">Business License</label>
+            <input type="text" name="business_license" class="form-control" value="{{ data.business_license|default:'' }}">
+          </div>
+          <div class="mb-3">
+            <label class="form-label body-medium">Location</label>
+            <input type="text" name="location" class="form-control" placeholder="e.g., Amani, Zanzibar" value="{{ data.location|default:'' }}">
+          </div>
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary">Create Vendor</button>
+            <a href="{% url 'admin_dashboard:manage-vendors' %}" class="btn btn-outline-secondary">Cancel</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

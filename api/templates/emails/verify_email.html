@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify Your Email - AIMall Driver</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f5f5f5;
+            margin: 0;
+            padding: 20px;
+        }
+        
+        .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .email-header {
+            background: linear-gradient(135deg, #2E7D32 0%, #1B5E20 100%);
+            padding: 40px 20px;
+            text-align: center;
+            color: white;
+        }
+        
+        .email-header h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: 600;
+        }
+        
+        .email-header p {
+            margin: 5px 0 0 0;
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        
+        .email-body {
+            padding: 40px 30px;
+        }
+        
+        .email-body h2 {
+            color: #2E7D32;
+            font-size: 20px;
+            margin-top: 0;
+        }
+        
+        .email-body p {
+            margin: 15px 0;
+            font-size: 15px;
+            line-height: 1.8;
+        }
+        
+        .action-button {
+            display: inline-block;
+            background-color: #2E7D32;
+            color: white;
+            padding: 12px 30px;
+            text-decoration: none;
+            border-radius: 4px;
+            font-weight: 600;
+            margin: 20px auto;
+            display: block;
+            width: fit-content;
+        }
+        
+        .action-button:hover {
+            background-color: #1B5E20;
+        }
+        
+        .info-box {
+            background-color: #e8f5e9;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 20px 0;
+            border-left: 3px solid #4caf50;
+        }
+        
+        .info-box strong {
+            color: #2E7D32;
+        }
+        
+        .email-footer {
+            background-color: #f5f5f5;
+            padding: 30px;
+            text-align: center;
+            border-top: 1px solid #eee;
+            font-size: 12px;
+            color: #999;
+        }
+        
+        .email-footer p {
+            margin: 5px 0;
+        }
+        
+        .footer-link {
+            color: #2E7D32;
+            text-decoration: none;
+        }
+        
+        .footer-link:hover {
+            text-decoration: underline;
+        }
+        
+        .link-text {
+            word-break: break-all;
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <!-- Header -->
+        <div class="email-header">
+            <h1>✅ Verify Your Account</h1>
+            <p>AIMall Driver Platform</p>
+        </div>
+        
+        <!-- Body -->
+        <div class="email-body">
+            <h2>Confirm Your Email Address</h2>
+            
+            <p>Welcome to AIMall Driver!</p>
+            
+            <p>To complete your account setup and start accepting deliveries, please verify your email address by clicking the button below:</p>
+            
+            <!-- CTA Button -->
+            <div style="text-align: center;">
+                <a href="{{ verification_link }}" class="action-button">Verify Email Address</a>
+            </div>
+            
+            <!-- Or Link -->
+            <p style="text-align: center; font-size: 13px; color: #999;">Or copy and paste this link in your browser:</p>
+            <p class="link-text">
+                {{ verification_link }}
+            </p>
+            
+            <!-- Info -->
+            <div class="info-box">
+                <strong>What happens next?</strong><br>
+                Once you verify your email, you'll have full access to your AIMall Driver account and can start accepting delivery orders.
+            </div>
+            
+            <!-- Support -->
+            <p style="font-size: 14px; color: #666; margin-top: 30px;">
+                Questions? Contact us at<br>
+                <a href="mailto:{{ support_email }}" class="footer-link">{{ support_email }}</a>
+            </p>
+        </div>
+        
+        <!-- Footer -->
+        <div class="email-footer">
+            <p>© 2025 AIMall. All rights reserved.</p>
+            <p>
+                <a href="https://aimall.tz" class="footer-link">Visit AIMall</a> | 
+                <a href="https://aimall.tz/privacy" class="footer-link">Privacy Policy</a> | 
+                <a href="https://aimall.tz/terms" class="footer-link">Terms of Service</a>
+            </p>
+        </div>
+    </div>
+</body>
+</html>

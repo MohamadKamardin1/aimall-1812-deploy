@@ -1,0 +1,254 @@
+<!-- admin_dashboard/templates/admin_dashboard/users/manage_users.html -->
+{% extends 'admin_dashboard/base.html' %}
+{% load static %}
+
+{% block title %}Users - AI Mall Admin{% endblock %}
+{% block page_title %}Users & Accounts{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+  <div class="col-md-3">
+    <div class="dashboard-card p-3">
+      <div class="title-medium">Total Users: {{ total_users }}</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="dashboard-card p-3">
+      <div class="title-medium text-primary">Customers: {{ customers_count }}</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="dashboard-card p-3">
+      <div class="title-medium text-success">Vendors: {{ vendors_count }}</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="dashboard-card p-3">
+      <div class="title-medium text-info">Drivers: {{ drivers_count }}</div>
+    </div>
+  </div>
+</div>
+
+<!-- User Type Tabs -->
+<ul class="nav nav-tabs mb-4">
+  <li class="nav-item">
+    <a class="nav-link {% if active_tab == 'all' %}active{% endif %}" 
+       href="?type=all&status={{ filters.status }}&q={{ filters.search }}">All Users ({{ total_users }})</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link {% if active_tab == 'customer' %}active{% endif %}" 
+       href="?type=customer&status={{ filters.status }}&q={{ filters.search }}">Customers ({{ customers_count }})</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link {% if active_tab == 'vendor' %}active{% endif %}" 
+       href="?type=vendor&status={{ filters.status }}&q={{ filters.search }}">Vendors ({{ vendors_count }})</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link {% if active_tab == 'driver' %}active{% endif %}" 
+       href="?type=driver&status={{ filters.status }}&q={{ filters.search }}">Drivers ({{ drivers_count }})</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link {% if active_tab == 'admin' %}active{% endif %}" 
+       href="?type=admin&status={{ filters.status }}&q={{ filters.search }}">Admins ({{ admins_count }})</a>
+  </li>
+</ul>
+
+<!-- Replace your current form with this -->
+<div class="search-filter-bar mb-4">
+  <form method="get" class="row g-3">
+    <input type="hidden" name="type" value="{{ active_tab }}">  <!-- ✅ Use active_tab -->
+    <div class="col-md-3">
+      <label class="form-label body-small">Status</label>
+      <select name="status" class="form-select">
+        <option value="all" {% if filters.status == 'all' %}selected{% endif %}>All</option>
+        <option value="active" {% if filters.status == 'active' %}selected{% endif %}>Active</option>
+        <option value="inactive" {% if filters.status == 'inactive' %}selected{% endif %}>Inactive</option>
+        <option value="verified" {% if filters.status == 'verified' %}selected{% endif %}>Verified</option>
+        <option value="unverified" {% if filters.status == 'unverified' %}selected{% endif %}>Unverified</option>
+      </select>
+    </div>
+    <div class="col-md-4">
+      <label class="form-label body-small">Search</label>
+      <input type="text" name="q" value="{{ filters.search }}" class="form-control" placeholder="Phone, email, name...">
+    </div>
+    <div class="col-md-2 d-flex align-items-end">
+      <button type="submit" class="btn btn-primary w-100">Apply</button>
+    </div>
+    <div class="col-md-3 d-flex align-items-end">
+      {% if filters.status != 'all' or filters.search %}
+        <a href="?type={{ active_tab }}" class="btn btn-outline-secondary w-100">Clear Filters</a>
+      {% endif %}
+    </div>
+  </form>
+</div>
+
+<!-- Users Table -->
+<div class="dashboard-card">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <h6 class="title-medium mb-0">User Accounts</h6>
+    <div class="text-muted body-small">
+      Showing {{ page_obj.start_index }} - {{ page_obj.end_index }} of {{ page_obj.paginator.count }} users
+    </div>
+  </div>
+  <div class="card-body p-0">
+    {% if page_obj %}
+      <div class="table-responsive">
+        <table class="data-table table mb-0">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Name / Business</th>
+              <th>Type</th>
+              <th>Phone</th>
+              <th>Status</th>
+              <th>Verified</th>
+              <th>Joined</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for user in page_obj %}
+            <tr>
+              <td><code>{{ user.id|slice:":8" }}</code></td>
+              <td>
+                <div class="d-flex align-items-center">
+                  {% if user.customer %}
+                    <i class="fas fa-user me-2 text-primary"></i>
+                    {{ user.customer.names }}
+                  {% elif user.vendor %}
+                    <i class="fas fa-store me-2 text-success"></i>
+                    {{ user.vendor.business_name }}
+                  {% elif user.driver %}
+                    <i class="fas fa-truck me-2 text-info"></i>
+                    {{ user.driver.names }}
+                  {% elif user.admin_profile %}
+                    <i class="fas fa-crown me-2 text-warning"></i>
+                    {{ user.admin_profile.names|default:"System Admin" }}
+                  {% else %}
+                    <i class="fas fa-user me-2 text-secondary"></i>
+                    {{ user.phone_number }}
+                  {% endif %}
+                </div>
+              </td>
+              <td>
+                <span class="chip chip-{% if user.user_type == 'customer' %}primary{% elif user.user_type == 'vendor' %}success{% elif user.user_type == 'driver' %}info{% elif user.user_type == 'admin' %}warning{% else %}secondary{% endif %}">
+                  {{ user.get_user_type_display }}
+                </span>
+              </td>
+              <td>{{ user.phone_number }}</td>
+              <td>
+                {% if user.is_active %}
+                  <span class="chip chip-success">Active</span>
+                {% else %}
+                  <span class="chip chip-error">Inactive</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if user.is_verified %}
+                  <span class="chip chip-success">✓ Verified</span>
+                {% else %}
+                  <span class="chip chip-warning">✕ Pending</span>
+                {% endif %}
+              </td>
+              <td>
+                <small class="text-muted">{{ user.date_joined|date:"M d, Y" }}</small>
+              </td>
+              <td>
+                <div class="btn-group btn-group-sm">
+                  <a href="{% url 'admin_dashboard:user-detail' user.id %}" class="btn btn-outline-primary" title="View Details">
+                    <i class="fas fa-eye"></i>
+                  </a>
+                  <a href="{% url 'admin_dashboard:edit-user' user.id %}" class="btn btn-outline-secondary" title="Edit User">
+                    <i class="fas fa-edit"></i>
+                  </a>
+                  {% if user.is_active %}
+                    <a href="#" class="btn btn-outline-danger" title="Deactivate">
+                      <i class="fas fa-ban"></i>
+                    </a>
+                  {% else %}
+                    <a href="#" class="btn btn-outline-success" title="Activate">
+                      <i class="fas fa-check"></i>
+                    </a>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      
+      <!-- Pagination -->
+      <div class="p-3 d-flex justify-content-between align-items-center">
+        <div class="text-muted body-small">
+          Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+        </div>
+        <nav>
+          <ul class="pagination pagination-sm mb-0">
+            {% if page_obj.has_previous %}
+              <li class="page-item">
+                <a class="page-link" href="?type={{ active_tab }}&status={{ filters.status }}&q={{ filters.search }}&page=1">
+                  <i class="fas fa-angle-double-left"></i>
+                </a>
+              </li>
+              <li class="page-item">
+                <a class="page-link" href="?type={{ active_tab }}&status={{ filters.status }}&q={{ filters.search }}&page={{ page_obj.previous_page_number }}">
+                  <i class="fas fa-angle-left"></i>
+                </a>
+              </li>
+            {% else %}
+              <li class="page-item disabled">
+                <span class="page-link"><i class="fas fa-angle-double-left"></i></span>
+              </li>
+              <li class="page-item disabled">
+                <span class="page-link"><i class="fas fa-angle-left"></i></span>
+              </li>
+            {% endif %}
+            
+            {% for num in page_obj.paginator.page_range %}
+              {% if page_obj.number == num %}
+                <li class="page-item active">
+                  <span class="page-link">{{ num }}</span>
+                </li>
+              {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                <li class="page-item">
+                  <a class="page-link" href="?type={{ active_tab }}&status={{ filters.status }}&q={{ filters.search }}&page={{ num }}">{{ num }}</a>
+                </li>
+              {% endif %}
+            {% endfor %}
+            
+            {% if page_obj.has_next %}
+              <li class="page-item">
+                <a class="page-link" href="?type={{ active_tab }}&status={{ filters.status }}&q={{ filters.search }}&page={{ page_obj.next_page_number }}">
+                  <i class="fas fa-angle-right"></i>
+                </a>
+              </li>
+              <li class="page-item">
+                <a class="page-link" href="?type={{ active_tab }}&status={{ filters.status }}&q={{ filters.search }}&page={{ page_obj.paginator.num_pages }}">
+                  <i class="fas fa-angle-double-right"></i>
+                </a>
+              </li>
+            {% else %}
+              <li class="page-item disabled">
+                <span class="page-link"><i class="fas fa-angle-right"></i></span>
+              </li>
+              <li class="page-item disabled">
+                <span class="page-link"><i class="fas fa-angle-double-right"></i></span>
+              </li>
+            {% endif %}
+          </ul>
+        </nav>
+      </div>
+    {% else %}
+      <div class="empty-state text-center py-5">
+        <i class="fas fa-users fa-3x text-muted mb-3"></i>
+        <h5 class="text-muted">No users found</h5>
+        <p class="text-muted">Try adjusting your filters or search terms</p>
+        {% if filters.status != 'all' or filters.search %}
+          <a href="?type={{ active_tab }}" class="btn btn-primary mt-2">Clear Filters</a>
+        {% endif %}
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

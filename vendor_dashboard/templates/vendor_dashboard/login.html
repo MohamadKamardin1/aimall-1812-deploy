@@ -1,0 +1,33 @@
+{% extends 'vendor_dashboard/auth_base.html' %}
+{% load static %}
+
+{% block title %}Login - Vendor Dashboard{% endblock %}
+{% block auth_title %}Welcome Back!{% endblock %}
+{% block auth_subtitle %}Sign in to your vendor account{% endblock %}
+
+{% block content %}
+<form method="post">
+    {% csrf_token %}
+    <div class="mb-3">
+        <label class="form-label">Phone Number</label>
+        {{ form.phone_number }}
+        {% if form.phone_number.errors %}
+            <div class="text-danger mt-1">{{ form.phone_number.errors }}</div>
+        {% endif %}
+    </div>
+    <div class="mb-4">
+        <label class="form-label">Password</label>
+        {{ form.password }}
+        {% if form.password.errors %}
+            <div class="text-danger mt-1">{{ form.password.errors }}</div>
+        {% endif %}
+    </div>
+    <button type="submit" class="btn btn-primary w-100 py-2">Sign In</button>
+</form>
+<div class="text-center mt-3">
+    <p class="body-medium text-muted">
+        Don't have an account? 
+        <a href="{% url 'vendor_dashboard:register' %}" class="link-primary fw-bold">Register as Vendor</a>
+    </p>
+</div>
+{% endblock %}

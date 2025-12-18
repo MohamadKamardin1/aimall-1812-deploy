@@ -1,0 +1,101 @@
+<!-- admin_dashboard/templates/admin_dashboard/products/edit_variant.html -->
+{% extends 'admin_dashboard/base.html' %}
+{% load static product_extras %}
+
+{% block title %}Edit Variant - {{ variant.product_template.name }}{% endblock %}
+{% block page_title %}Edit Product Variant{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-lg-8">
+    <div class="dashboard-card">
+      <div class="card-header">
+        <h6 class="title-medium mb-0">Edit Variant</h6>
+      </div>
+      <div class="card-body">
+        <form method="post">
+          {% csrf_token %}
+          <div class="mb-3">
+            <p><strong>Product:</strong> {{ variant.product_template.name }}</p>
+            <p><strong>Vendor:</strong> {{ variant.vendor.business_name }}</p>
+            <p><strong>Market Zone:</strong> {{ variant.market_zone.market.name }} - {{ variant.market_zone.name }}</p>
+          </div>
+
+          <!-- Cost Price by Unit -->
+          <div class="mb-4">
+            <h6 class="title-small mb-3">Cost Price by Unit</h6>
+            {% if variant.product_template.available_units.all %}
+              <div class="row g-3">
+                {% for unit in variant.product_template.available_units.all %}
+                  {% with prices=unit_prices|get_item:unit.id %}
+                    <div class="col-md-6">
+                      <label class="form-label body-medium">{{ unit.name }} ({{ unit.symbol }})</label>
+                      <div class="input-group mb-2">
+                        <span class="input-group-text">Tsh Cost</span>
+                        <input 
+                          type="number" 
+                          step="0.01" 
+                          name="cost_price_{{ unit.id }}" 
+                          class="form-control"
+                          value="{{ prices.cost_price|floatformat:2 }}"
+                          required>
+                      </div>
+                      <div class="form-text body-small">
+                        Current selling price: Tsh {{ prices.selling_price|floatformat:0 }}
+                      </div>
+                    </div>
+                  {% endwith %}
+                {% endfor %}
+              </div>
+            {% endif %}
+          </div>
+
+          <!-- Addons -->
+          {% if all_addons %}
+            <div class="mb-3">
+              <label class="form-label body-medium">Available Add-ons</label>
+              <div class="d-flex flex-wrap gap-2">
+                {% for addon in all_addons %}
+                  <div class="form-check">
+                    <input 
+                      class="form-check-input" 
+                      type="checkbox" 
+                      name="addons" 
+                      value="{{ addon.id }}" 
+                      id="addon_{{ addon.id }}"
+                      {% if addon.id in selected_addons %}checked{% endif %}>
+                    <label class="form-check-label body-small" for="addon_{{ addon.id }}">
+                      {{ addon.name }} (Tsh {{ addon.price|floatformat:0 }})
+                    </label>
+                  </div>
+                {% endfor %}
+              </div>
+            </div>
+          {% endif %}
+
+          <div class="form-check mb-3">
+            <input class="form-check-input" type="checkbox" name="is_active" id="is_active" {% if variant.is_active %}checked{% endif %}>
+            <label class="form-check-label body-medium" for="is_active">Active</label>
+          </div>
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary">Update Variant</button>
+            <a href="{% url 'admin_dashboard:manage-product-variants' variant.product_template.id %}" class="btn btn-outline-secondary">Cancel</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-4">
+    <div class="dashboard-card">
+      <div class="card-header">
+        <h6 class="title-medium mb-0">Preview</h6>
+      </div>
+      <div class="card-body">
+        <p><strong>Category Profit %:</strong> {{ variant.product_template.category.profit_percentage }}%</p>
+        <p><strong>Effective Profit %:</strong> {{ variant.effective_profit_percentage }}%</p>
+        <p class="body-medium text-muted mt-2">Note: Selling prices are auto-calculated from cost + profit %.</p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

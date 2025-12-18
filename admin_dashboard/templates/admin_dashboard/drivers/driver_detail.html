@@ -1,0 +1,134 @@
+<!-- admin_dashboard/templates/admin_dashboard/drivers/driver_detail.html -->
+{% extends 'admin_dashboard/base.html' %}
+{% load static %}
+
+{% block title %}Driver: {{ driver.names }}{% endblock %}
+{% block page_title %}Driver Details{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-lg-8">
+    <div class="dashboard-card">
+      <div class="card-header">
+        <h6 class="title-medium mb-0">{{ driver.names }}</h6>
+      </div>
+      <div class="card-body">
+        <div class="row">
+          <div class="col-md-6">
+            <p><strong>Phone:</strong> {{ driver.user.phone_number }}</p>
+            <p><strong>Email:</strong> {{ driver.user.email|default:"—" }}</p>
+            <p><strong>License #:</strong> {{ driver.license_number }}</p>
+            <p><strong>Vehicle Type:</strong> {{ driver.vehicle_type }}</p>
+          </div>
+          <div class="col-md-6">
+            <p><strong>Vehicle Plate:</strong> {{ driver.vehicle_plate }}</p>
+            <p><strong>Account Status:</strong>
+              {% if driver.user.is_active %}
+                <span class="chip chip-success">Active</span>
+              {% else %}
+                <span class="chip chip-error">Inactive</span>
+              {% endif %}
+            </p>
+            <p><strong>Verification:</strong>
+              {% if driver.is_verified %}
+                <span class="chip chip-success">Verified ({{ driver.verified_at|date:"M d, Y" }})</span>
+              {% else %}
+                <span class="chip chip-warning">Pending</span>
+              {% endif %}
+            </p>
+            <p><strong>Availability:</strong>
+              {% if driver.is_available %}
+                <span class="chip chip-success">Available</span>
+              {% else %}
+                <span class="chip chip-warning">Unavailable</span>
+              {% endif %}
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recent Orders -->
+    <div class="dashboard-card mt-4">
+      <div class="card-header d-flex justify-content-between">
+        <h6 class="title-medium mb-0">Recent Orders ({{ orders.count }})</h6>
+      </div>
+      <div class="card-body p-0">
+        {% if orders %}
+          <div class="table-responsive">
+            <table class="table mb-0">
+              <thead>
+                <tr>
+                  <th>Order #</th>
+                  <th>Customer</th>
+                  <th>Amount</th>
+                  <th>Status</th>
+                  <th>Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for order in orders %}
+                <tr>
+                  <td>{{ order.order_number }}</td>
+                  <td>{{ order.customer.customer.names|default:order.customer.phone_number }}</td>
+                  <td>Tsh {{ order.total_amount|floatformat:0 }}</td>
+                  <td>
+                    <span class="chip chip-{{ order.status }}">
+                      {{ order.get_status_display }}
+                    </span>
+                  </td>
+                  <td>{{ order.created_at|date:"M d, Y" }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="p-3 text-center text-muted">
+            <i class="fas fa-box-open me-2"></i>No orders assigned.
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Actions Sidebar -->
+  <div class="col-lg-4">
+    <div class="dashboard-card">
+      <div class="card-header">
+        <h6 class="title-medium mb-0">Actions</h6>
+      </div>
+      <div class="card-body">
+        {% if not driver.is_verified %}
+          <form method="post" action="{% url 'admin_dashboard:verify-driver' driver.user.id %}" class="mb-3">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-success w-100">
+              <i class="fas fa-check-circle me-1"></i> Verify Driver
+            </button>
+          </form>
+        {% endif %}
+        
+        <form method="post" action="{% url 'admin_dashboard:toggle-driver-availability' driver.user.id %}" class="mb-3">
+          {% csrf_token %}
+          <button type="submit" class="btn {% if driver.is_available %}btn-warning{% else %}btn-info{% endif %} w-100">
+            {% if driver.is_available %}
+              <i class="fas fa-pause-circle me-1"></i> Mark Unavailable
+            {% else %}
+              <i class="fas fa-play-circle me-1"></i> Mark Available
+            {% endif %}
+          </button>
+        </form>
+        
+        <a href="{% url 'admin_dashboard:edit-driver' driver.user.id %}" class="btn btn-outline-primary w-100 mb-3">
+          <i class="fas fa-edit me-1"></i> Edit Driver
+        </a>
+        
+        <a href="#" class="btn btn-outline-danger w-100"
+           onclick="crudHelper.confirmDelete('{% url 'admin_dashboard:delete-driver' driver.user.id %}', '{{ driver.names }}'); return false;">
+          <i class="fas fa-trash me-1"></i> Delete Driver
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

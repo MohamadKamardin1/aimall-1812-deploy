@@ -1,0 +1,54 @@
+<!-- admin_dashboard/templates/admin_dashboard/categories/add_category.html -->
+{% extends 'admin_dashboard/base.html' %}
+{% load static %}
+
+{% block title %}Add Category - AI Mall Admin{% endblock %}
+{% block page_title %}Add Product Category{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+    <div class="dashboard-card">
+      <div class="card-header">
+        <h6 class="title-medium mb-0">New Product Category</h6>
+      </div>
+      <div class="card-body">
+        <form method="post" enctype="multipart/form-data">
+          {% csrf_token %}
+          <div class="mb-3">
+            <label class="form-label body-medium">Category Name *</label>
+            <input type="text" name="name" class="form-control" required placeholder="e.g., Fresh Fruits">
+          </div>
+          <div class="mb-3">
+            <label class="form-label body-medium">Parent Category</label>
+            <select name="parent" class="form-select">
+              <option value="">— None (Top-Level) —</option>
+              {% for cat in parent_categories %}
+                <option value="{{ cat.id }}">{{ cat.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label body-medium">Profit Percentage (%) *</label>
+            <input type="number" step="0.01" name="profit_percentage" class="form-control" required value="10.00" min="0" max="100">
+            <div class="form-text body-small">Default profit margin for products in this category</div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label body-medium">Description</label>
+            <textarea name="description" class="form-control" rows="3" placeholder="Brief description..."></textarea>
+          </div>
+          <div class="mb-3">
+            <label class="form-label body-medium">Category Image (Optional)</label>
+            <input type="file" name="image" class="form-control" accept="image/*">
+            <div class="form-text body-small">Recommended: 400x300px</div>
+          </div>
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary">Create Category</button>
+            <a href="{% url 'admin_dashboard:manage-categories' %}" class="btn btn-outline-secondary">Cancel</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

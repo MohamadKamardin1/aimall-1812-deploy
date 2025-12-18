@@ -1,0 +1,499 @@
+<!-- admin_dashboard/templates/admin_dashboard/orders/todays_orders.html -->
+{% extends 'admin_dashboard/base.html' %}
+{% load humanize %}
+{% load order_filters %}  <!-- Add this line -->
+
+{% block title %}Today's Orders - AI Mall Admin{% endblock %}
+
+{% block page_title %}Today's Orders ({{ today|date:"F d, Y" }}){% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Daily Stats -->
+    <div class="row mb-4 animate__animated animate__fadeIn">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="dashboard-card stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-shopping-cart text-primary"></i>
+                </div>
+                <div class="stat-value">{{ orders|get_length }}</div>
+                <div class="stat-label">Total Today</div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="dashboard-card stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-money-bill-wave text-success"></i>
+                </div>
+                <div class="stat-value">TZS {{ orders|total_revenue|floatformat:0|intcomma }}</div>
+                <div class="stat-label">Today's Revenue</div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="dashboard-card stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-motorcycle text-info"></i>
+                </div>
+                <div class="stat-value">{{ orders|delivered_count }}</div>
+                <div class="stat-label">Delivered</div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="dashboard-card stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-clock text-warning"></i>
+                </div>
+                <div class="stat-value">{{ orders|active_count }}</div>
+                <div class="stat-label">Active</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Status Distribution -->
+    <div class="dashboard-card mb-4">
+        <div class="card-header">
+            <h6 class="m-0 font-weight-bold text-primary">Orders by Status</h6>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                {% for status_code, status_name in order_statuses %}
+                    {% with status_orders=orders|where_status_equals:status_code %}
+                        {% if status_orders %}
+                        <div class="col-md-3 mb-3">
+                            <div class="status-card">
+                                <div class="status-header {% if status_name == 'Pending' %}bg-warning
+                                                      {% elif status_name == 'Confirmed' %}bg-info
+                                                      {% elif status_name == 'Delivered' %}bg-success
+                                                      {% elif status_name == 'Cancelled' %}bg-danger
+                                                      {% else %}bg-primary{% endif %}">
+                                    <h6 class="m-0">{{ status_name }}</h6>
+                                    <span class="badge bg-white text-dark">{{ status_orders|length }}</span>
+                                </div>
+                                <div class="status-body">
+                                    {% for order in status_orders|slice:":3" %}
+                                    <div class="status-item">
+                                        <a href="{% url 'admin_dashboard:order-detail' order.id %}" class="text-decoration-none">
+                                            <div class="d-flex justify-content-between">
+                                                <strong class="title-small">{{ order.order_number }}</strong>
+                                                <span class="body-small">TZS {{ order.total_amount|floatformat:0 }}</span>
+                                            </div>
+                                            <p class="body-small text-muted mb-0">
+                                                {{ order.customer.phone_number }}
+                                                <br>
+                                                <small>{{ order.created_at|date:"H:i" }}</small>
+                                            </p>
+                                        </a>
+                                    </div>
+                                    {% if not forloop.last %}<hr class="my-2">{% endif %}
+                                    {% endfor %}
+                                    {% if status_orders|length > 3 %}
+                                    <div class="text-center mt-2">
+                                        <a href="{% url 'admin_dashboard:orders-by-status' status_code %}" 
+                                           class="btn btn-sm btn-outline-primary">
+                                            +{{ status_orders|length|add:"-3" }} more
+                                        </a>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    {% endwith %}
+                {% empty %}
+                <div class="col-12 text-center py-4">
+                    <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                    <h5 class="title-medium">No orders today</h5>
+                    <p class="body-medium text-muted">Check back later for new orders.</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- All Today's Orders -->
+    <div class="dashboard-card">
+        <div class="card-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <h6 class="m-0 font-weight-bold text-primary">All Today's Orders</h6>
+                <div class="d-flex gap-2">
+                    <button onclick="exportToday()" class="btn btn-sm btn-outline-primary">
+                        <i class="fas fa-download me-1"></i> Export
+                    </button>
+                    <button onclick="printToday()" class="btn btn-sm btn-outline-primary">
+                        <i class="fas fa-print me-1"></i> Print
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Order #</th>
+                            <th>Customer</th>
+                            <th>Status</th>
+                            <th>Amount</th>
+                            <th>Payment</th>
+                            <th>Driver</th>
+                            <th>Time</th>
+                            <th>Age</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for order in orders %}
+                        <tr>
+                            <td>
+                                <a href="{% url 'admin_dashboard:order-detail' order.id %}" class="text-decoration-none">
+                                    <strong class="title-medium text-primary">{{ order.order_number }}</strong>
+                                </a>
+                            </td>
+                            <td>
+                                <div class="title-small">{{ order.customer.customer.names|default:order.customer.phone_number }}</div>
+                                <div class="body-small text-muted">{{ order.customer.phone_number }}</div>
+                            </td>
+                            <td>
+                                {% with status=order.status %}
+                                <span class="chip {% if status == 'pending' %}chip-warning
+                                               {% elif status == 'confirmed' or status == 'preparing' %}chip-primary
+                                               {% elif status == 'ready' %}chip-info
+                                               {% elif status == 'delivered' %}chip-success
+                                               {% elif status == 'cancelled' or status == 'failed' %}chip-error
+                                               {% else %}chip-primary{% endif %}">
+                                    {{ order.get_status_display }}
+                                </span>
+                                {% endwith %}
+                            </td>
+                            <td>
+                                <div class="title-medium">TZS {{ order.total_amount|floatformat:2|intcomma }}</div>
+                            </td>
+                            <td>
+                                <span class="chip {% if order.is_paid %}chip-success{% else %}chip-warning{% endif %}">
+                                    {% if order.is_paid %}Paid{% else %}Unpaid{% endif %}
+                                </span>
+                            </td>
+                            <td>
+                                {% if order.driver %}
+                                <div class="title-small">{{ order.driver.driver.names|truncatechars:12 }}</div>
+                                <div class="body-small text-muted">{{ order.driver.driver.vehicle_plate }}</div>
+                                {% else %}
+                                <span class="chip chip-warning">Not assigned</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="title-small">{{ order.created_at|date:"H:i" }}</div>
+                                <div class="body-small text-muted">{{ order.delivery_time_slot.name|default:"-" }}</div>
+                            </td>
+                            <td>
+                                {% with hours_old=order.created_at|timesince_hours %}
+                                <span class="chip {% if order.status == 'pending' and hours_old > 1 %}chip-warning{% else %}chip-primary{% endif %}">
+                                    {{ order.created_at|timesince }}
+                                </span>
+                                {% endwith %}
+                            </td>
+                            <td>
+                                <div class="dropdown">
+                                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                        <i class="fas fa-ellipsis-v"></i>
+                                    </button>
+                                    <ul class="dropdown-menu dropdown-menu-end">
+                                        <li>
+                                            <a class="dropdown-item" href="{% url 'admin_dashboard:order-detail' order.id %}">
+                                                <i class="fas fa-eye me-2"></i>View Details
+                                            </a>
+                                        </li>
+                                        {% if order.status == 'pending' %}
+                                        <li>
+                                            <a class="dropdown-item text-success" href="#" onclick="confirmOrder('{{ order.id }}')">
+                                                <i class="fas fa-check me-2"></i>Confirm
+                                            </a>
+                                        </li>
+                                        {% endif %}
+                                        {% if order.status == 'ready' and not order.driver %}
+                                        <li>
+                                            <a class="dropdown-item" href="{% url 'admin_dashboard:assign-driver' order.id %}">
+                                                <i class="fas fa-user-plus me-2"></i>Assign Driver
+                                            </a>
+                                        </li>
+                                        {% endif %}
+                                        <li>
+                                            <a class="dropdown-item" href="{% url 'admin_dashboard:print-order' order.id %}" target="_blank">
+                                                <i class="fas fa-print me-2"></i>Print
+                                            </a>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="9" class="text-center py-5">
+                                <div class="empty-state">
+                                    <i class="fas fa-calendar-day fa-3x mb-3 text-muted"></i>
+                                    <h5 class="title-medium">No Orders Today</h5>
+                                    <p class="body-medium text-muted">It looks like it's been a quiet day so far.</p>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Daily Performance -->
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="dashboard-card h-100">
+                <div class="card-header">
+                    <h6 class="m-0 font-weight-bold text-primary">Today's Performance</h6>
+                </div>
+                <div class="card-body">
+                    <div class="performance-stats">
+                        <div class="performance-item">
+                            <div class="performance-label">Order Completion Rate</div>
+                            <div class="performance-value">
+                                {{ orders|completion_rate|floatformat:1 }}%
+                            </div>
+                            <div class="performance-bar">
+                                <div class="performance-fill" style="width: {{ orders|completion_rate|floatformat:0 }}%"></div>
+                            </div>
+                        </div>
+                        <div class="performance-item">
+                            <div class="performance-label">Average Order Value</div>
+                            <div class="performance-value">
+                                TZS {{ orders|avg_order_value|floatformat:0|intcomma }}
+                            </div>
+                        </div>
+                        <div class="performance-item">
+                            <div class="performance-label">Average Preparation Time</div>
+                            <div class="performance-value">25 min</div>
+                        </div>
+                        <div class="performance-item">
+                            <div class="performance-label">Average Delivery Time</div>
+                            <div class="performance-value">38 min</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="dashboard-card h-100">
+                <div class="card-header">
+                    <h6 class="m-0 font-weight-bold text-primary">Quick Actions</h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'admin_dashboard:pending-preparation' %}" class="btn btn-primary">
+                            <i class="fas fa-utensils me-2"></i> View Pending Preparation
+                        </a>
+                        <a href="{% url 'admin_dashboard:ready-for-pickup' %}" class="btn btn-info">
+                            <i class="fas fa-motorcycle me-2"></i> Assign Drivers
+                        </a>
+                        <a href="{% url 'admin_dashboard:orders-by-status' 'pending' %}" class="btn btn-warning">
+                            <i class="fas fa-clock me-2"></i> Review Pending Orders
+                        </a>
+                        <a href="{% url 'admin_dashboard:order-analytics' %}" class="btn btn-outline-primary">
+                            <i class="fas fa-chart-bar me-2"></i> View Analytics
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Export Modal -->
+<div class="modal fade" id="exportModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title headline-small">Export Today's Orders</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label label-medium">Format</label>
+                    <select class="form-select" id="exportFormat">
+                        <option value="csv">CSV (Excel)</option>
+                        <option value="pdf">PDF</option>
+                        <option value="print">Print Preview</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label label-medium">Include</label>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="includeDetails" checked>
+                        <label class="form-check-label body-small" for="includeDetails">
+                            Order details
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="includeItems" checked>
+                        <label class="form-check-label body-small" for="includeItems">
+                            Order items
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="includePrices" checked>
+                        <label class="form-check-label body-small" for="includePrices">
+                            Prices
+                        </label>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="processExport()">Export</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<style>
+    .status-card {
+        border: 1px solid var(--outline);
+        border-radius: var(--border-radius);
+        overflow: hidden;
+        height: 100%;
+    }
+    
+    .status-header {
+        padding: 0.75rem 1rem;
+        color: white;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .status-body {
+        padding: 1rem;
+        max-height: 300px;
+        overflow-y: auto;
+    }
+    
+    .status-item {
+        padding: 0.25rem 0;
+    }
+    
+    .status-item:hover {
+        background-color: var(--surface-variant);
+        border-radius: var(--border-radius-sm);
+        padding: 0.25rem 0.5rem;
+        margin: 0 -0.5rem;
+    }
+    
+    .performance-stats {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+    
+    .performance-item {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .performance-label {
+        font-size: 0.875rem;
+        color: var(--on-surface-variant);
+    }
+    
+    .performance-value {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: var(--primary);
+    }
+    
+    .performance-bar {
+        height: 6px;
+        background-color: var(--surface-variant);
+        border-radius: 3px;
+        overflow: hidden;
+    }
+    
+    .performance-fill {
+        height: 100%;
+        background-color: var(--primary);
+        border-radius: 3px;
+        transition: width 1s ease;
+    }
+</style>
+
+<script>
+    function confirmOrder(orderId) {
+        if (confirm('Confirm this order?')) {
+            window.showLoading();
+            window.location.href = "{% url 'admin_dashboard:update-order-status' '00000000-0000-0000-0000-000000000000' %}".replace('00000000-0000-0000-0000-000000000000', orderId) + '?status=confirmed';
+        }
+    }
+    
+    function exportToday() {
+        const modal = new bootstrap.Modal(document.getElementById('exportModal'));
+        modal.show();
+    }
+    
+    function processExport() {
+        const format = document.getElementById('exportFormat').value;
+        window.showLoading();
+        
+        if (format === 'csv') {
+            window.location.href = "{% url 'admin_dashboard:export-orders-csv' %}?date_range=today";
+        } else if (format === 'pdf') {
+            crudHelper.showNotification('PDF export coming soon!', 'info');
+            bootstrap.Modal.getInstance(document.getElementById('exportModal')).hide();
+        } else if (format === 'print') {
+            window.print();
+            bootstrap.Modal.getInstance(document.getElementById('exportModal')).hide();
+        }
+    }
+    
+    function printToday() {
+        window.print();
+    }
+    
+    // Auto-refresh every 2 minutes
+    setTimeout(function() {
+        location.reload();
+    }, 120000);
+    
+    // Initialize performance bars animation
+    document.addEventListener('DOMContentLoaded', function() {
+        const bars = document.querySelectorAll('.performance-fill');
+        bars.forEach(bar => {
+            const width = bar.style.width;
+            bar.style.width = '0';
+            setTimeout(() => {
+                bar.style.width = width;
+            }, 100);
+        });
+    });
+    
+    // Keyboard shortcuts
+    document.addEventListener('keydown', function(e) {
+        // Ctrl+E for export
+        if (e.ctrlKey && e.key === 'e') {
+            e.preventDefault();
+            exportToday();
+        }
+        
+        // Ctrl+P for print
+        if (e.ctrlKey && e.key === 'p') {
+            e.preventDefault();
+            printToday();
+        }
+        
+        // F5 to refresh
+        if (e.key === 'F5') {
+            e.preventDefault();
+            window.showLoading();
+            setTimeout(() => location.reload(), 500);
+        }
+    });
+</script>
+{% endblock %}

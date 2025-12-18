@@ -1,0 +1,184 @@
+<!-- admin_dashboard/templates/admin_dashboard/drivers/manage_drivers.html -->
+{% extends 'admin_dashboard/base.html' %}
+{% load static %}
+
+{% block title %}Drivers - AI Mall Admin{% endblock %}
+{% block page_title %}Bodaboda Drivers{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+  <div class="col-md-3">
+    <div class="dashboard-card p-3">
+      <div class="title-medium">Total: {{ total_drivers }}</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="dashboard-card p-3">
+      <div class="title-medium text-success">Verified: {{ verified_drivers }}</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="dashboard-card p-3">
+      <div class="title-medium text-warning">Pending: {{ pending_drivers }}</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="dashboard-card p-3">
+      <div class="title-medium">Available: {{ available_drivers }}</div>
+    </div>
+  </div>
+</div>
+
+<div class="search-filter-bar">
+  <form method="get" class="row g-3">
+    <div class="col-md-4">
+      <input type="text" name="q" value="{{ filters.search }}" class="form-control" placeholder="Name, phone, plate...">
+    </div>
+    <div class="col-md-3">
+      <select name="status" class="form-select">
+        <option value="all">All Status</option>
+        <option value="verified" {% if filters.status == 'verified' %}selected{% endif %}>Verified</option>
+        <option value="pending" {% if filters.status == 'pending' %}selected{% endif %}>Pending</option>
+        <option value="active" {% if filters.status == 'active' %}selected{% endif %}>Active</option>
+        <option value="inactive" {% if filters.status == 'inactive' %}selected{% endif %}>Inactive</option>
+        <option value="available" {% if filters.status == 'available' %}selected{% endif %}>Available</option>
+        <option value="unavailable" {% if filters.status == 'unavailable' %}selected{% endif %}>Unavailable</option>
+      </select>
+    </div>
+    <div class="col-md-2 d-flex align-items-end">
+      <button type="submit" class="btn btn-primary w-100">Filter</button>
+    </div>
+  </form>
+</div>
+
+<div class="dashboard-card">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <h6 class="title-medium mb-0">Drivers</h6>
+    <div class="d-flex gap-2">
+      <a href="{% url 'admin_dashboard:export-drivers-csv' %}" class="btn btn-outline-secondary btn-sm">
+        <i class="fas fa-file-csv me-1"></i> Export CSV
+      </a>
+      <a href="{% url 'admin_dashboard:add-driver' %}" class="btn btn-primary btn-sm">
+        <i class="fas fa-plus me-1"></i> Add Driver
+      </a>
+    </div>
+  </div>
+  <div class="card-body p-0">
+    {% if drivers %}
+      <form method="post" id="bulkDriverForm">
+        {% csrf_token %}
+        <input type="hidden" name="action" id="bulkDriverAction">
+        <div class="table-responsive">
+          <table class="data-table table mb-0">
+            <thead>
+              <tr>
+                <th style="width: 40px;">
+                  <input type="checkbox" id="selectAllDrivers" class="form-check-input">
+                </th>
+                <th>Driver</th>
+                <th>Phone</th>
+                <th>Plate</th>
+                <th>License</th>
+                <th>Status</th>
+                <th>Available</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for driver in drivers %}
+              <tr>
+                <td>
+                  <input type="checkbox" name="driver_ids" value="{{ driver.user.id }}" class="form-check-input">
+                </td>
+                <td class="title-medium">{{ driver.names }}</td>
+                <td>{{ driver.user.phone_number }}</td>
+                <td>{{ driver.vehicle_plate }}</td>
+                <td>{{ driver.license_number|truncatechars:12 }}</td>
+                <td>
+                  {% if driver.user.is_active %}
+                    <span class="chip chip-success">Active</span>
+                  {% else %}
+                    <span class="chip chip-error">Inactive</span>
+                  {% endif %}
+                  {% if driver.is_verified %}
+                    <span class="chip chip-success">Verified</span>
+                  {% else %}
+                    <span class="chip chip-warning">Pending</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if driver.is_available %}
+                    <span class="chip chip-success">Yes</span>
+                  {% else %}
+                    <span class="chip chip-error">No</span>
+                  {% endif %}
+                </td>
+                <td>
+                  <a href="{% url 'admin_dashboard:driver-detail' driver.user.id %}" class="btn btn-outline-primary btn-sm me-1">
+                    <i class="fas fa-eye"></i>
+                  </a>
+                  <a href="{% url 'admin_dashboard:edit-driver' driver.user.id %}" class="btn btn-outline-secondary btn-sm me-1">
+                    <i class="fas fa-edit"></i>
+                  </a>
+                  <a href="#" class="btn btn-outline-danger btn-sm"
+                     onclick="crudHelper.confirmDelete('{% url 'admin_dashboard:delete-driver' driver.user.id %}', '{{ driver.names }}'); return false;">
+                    <i class="fas fa-trash"></i>
+                  </a>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </form>
+
+      <!-- Bulk Action Buttons -->
+      <div class="p-3 border-top d-flex gap-2">
+        <button type="button" class="btn btn-success btn-sm" onclick="performBulkDriverAction('verify')">
+          <i class="fas fa-check-circle me-1"></i> Verify Selected
+        </button>
+        <button type="button" class="btn btn-warning btn-sm" onclick="performBulkDriverAction('unverify')">
+          <i class="fas fa-times-circle me-1"></i> Unverify
+        </button>
+        <button type="button" class="btn btn-info btn-sm" onclick="performBulkDriverAction('activate')">
+          <i class="fas fa-play-circle me-1"></i> Activate
+        </button>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="performBulkDriverAction('deactivate')">
+          <i class="fas fa-pause-circle me-1"></i> Deactivate
+        </button>
+        <button type="button" class="btn btn-primary btn-sm" onclick="performBulkDriverAction('set-available')">
+          <i class="fas fa-motorcycle me-1"></i> Set Available
+        </button>
+        <button type="button" class="btn btn-outline-primary btn-sm" onclick="performBulkDriverAction('set-unavailable')">
+          <i class="fas fa-times me-1"></i> Set Unavailable
+        </button>
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <i class="fas fa-motorcycle"></i>
+        <p>No drivers found.</p>
+        <a href="{% url 'admin_dashboard:add-driver' %}" class="btn btn-primary mt-2">Add First Driver</a>
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+<script>
+function performBulkDriverAction(action) {
+  const checkboxes = document.querySelectorAll('input[name="driver_ids"]:checked');
+  if (checkboxes.length === 0) {
+    alert('Please select at least one driver.');
+    return;
+  }
+  document.getElementById('bulkDriverAction').value = action;
+  document.getElementById('bulkDriverForm').action = "{% url 'admin_dashboard:bulk-driver-action' %}";
+  document.getElementById('bulkDriverForm').submit();
+}
+
+// Select all checkbox
+document.getElementById('selectAllDrivers').addEventListener('change', function() {
+  const checkboxes = document.querySelectorAll('input[name="driver_ids"]');
+  checkboxes.forEach(cb => cb.checked = this.checked);
+});
+</script>
+{% endblock %}

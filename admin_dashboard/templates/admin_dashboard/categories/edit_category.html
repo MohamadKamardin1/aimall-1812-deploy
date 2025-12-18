@@ -1,0 +1,62 @@
+<!-- admin_dashboard/templates/admin_dashboard/categories/edit_category.html -->
+{% extends 'admin_dashboard/base.html' %}
+{% load static %}
+
+{% block title %}Edit Category - {{ category.name }}{% endblock %}
+{% block page_title %}Edit Product Category{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+    <div class="dashboard-card">
+      <div class="card-header">
+        <h6 class="title-medium mb-0">Edit: {{ category.name }}</h6>
+      </div>
+      <div class="card-body">
+        <form method="post" enctype="multipart/form-data">
+          {% csrf_token %}
+          <div class="mb-3">
+            <label class="form-label body-medium">Category Name *</label>
+            <input type="text" name="name" class="form-control" required value="{{ category.name }}">
+          </div>
+          <div class="mb-3">
+            <label class="form-label body-medium">Parent Category</label>
+            <select name="parent" class="form-select">
+              <option value="">— None (Top-Level) —</option>
+              {% for cat in parent_categories %}
+                <option value="{{ cat.id }}" {% if category.parent_id == cat.id %}selected{% endif %}>{{ cat.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label body-medium">Profit Percentage (%) *</label>
+            <input type="number" step="0.01" name="profit_percentage" class="form-control" required value="{{ category.profit_percentage }}" min="0" max="100">
+          </div>
+          <div class="mb-3">
+            <label class="form-label body-medium">Description</label>
+            <textarea name="description" class="form-control" rows="3">{{ category.description }}</textarea>
+          </div>
+          <div class="mb-3">
+            <label class="form-label body-medium">Category Image</label>
+            {% if category.image %}
+              <div class="mb-2">
+                <img src="{{ category.image.url }}" alt="{{ category.name }}" style="max-height: 150px; width: auto; border-radius: var(--border-radius);">
+              </div>
+            {% endif %}
+            <input type="file" name="image" class="form-control" accept="image/*">
+            <div class="form-text body-small">Leave blank to keep current image</div>
+          </div>
+          <div class="form-check mb-3">
+            <input class="form-check-input" type="checkbox" name="is_active" id="is_active" {% if category.is_active %}checked{% endif %}>
+            <label class="form-check-label body-medium" for="is_active">Active</label>
+          </div>
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary">Update Category</button>
+            <a href="{% url 'admin_dashboard:manage-categories' %}" class="btn btn-outline-secondary">Cancel</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

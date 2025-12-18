@@ -1,0 +1,78 @@
+<!-- admin_dashboard/templates/admin_dashboard/units/manage_unit_types.html -->
+{% extends 'admin_dashboard/base.html' %}
+{% load static %}
+
+{% block title %}Unit Types - AI Mall Admin{% endblock %}
+{% block page_title %}Measurement Unit Types{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+  <div class="col-md-6">
+    <div class="dashboard-card p-3">
+      <div class="title-medium">Total Unit Types: {{ unit_types.count }}</div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="dashboard-card p-3">
+      <div class="title-medium text-primary">Active: {{ unit_types.filter.is_active=True.count }}</div>
+    </div>
+  </div>
+</div>
+
+<div class="dashboard-card">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <h6 class="title-medium mb-0">Unit Types</h6>
+    <a href="{% url 'admin_dashboard:add-unit-type' %}" class="btn btn-primary btn-sm">
+      <i class="fas fa-plus me-1"></i> Add Type
+    </a>
+  </div>
+  <div class="card-body p-0">
+    {% if unit_types %}
+      <div class="table-responsive">
+        <table class="data-table table mb-0">
+          <thead>
+            <tr>
+              <th>Type</th>
+              <th>Base Unit</th>
+              <th>Units</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for ut in unit_types %}
+            <tr>
+              <td class="title-medium">{{ ut.name }}</td>
+              <td>{{ ut.base_unit_name }}</td>
+              <td>{{ ut.units.count }}</td>
+              <td>
+                {% if ut.is_active %}
+                  <span class="chip chip-success">Active</span>
+                {% else %}
+                  <span class="chip chip-error">Inactive</span>
+                {% endif %}
+              </td>
+              <td>
+                <a href="{% url 'admin_dashboard:edit-unit-type' ut.id %}" class="btn btn-outline-primary btn-sm me-1">
+                  <i class="fas fa-edit"></i>
+                </a>
+                <a href="#" class="btn btn-outline-danger btn-sm"
+                   onclick="crudHelper.confirmDelete('{% url 'admin_dashboard:delete-unit-type' ut.id %}', '{{ ut.name }}'); return false;">
+                  <i class="fas fa-trash"></i>
+                </a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <i class="fas fa-tags"></i>
+        <p>No unit types found.</p>
+        <a href="{% url 'admin_dashboard:add-unit-type' %}" class="btn btn-primary mt-2">Add First Type</a>
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

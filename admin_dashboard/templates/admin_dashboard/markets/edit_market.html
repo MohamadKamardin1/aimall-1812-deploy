@@ -1,0 +1,188 @@
+{% extends 'admin_dashboard/base.html' %}
+{% load static %}
+{% block title %}Edit Market - AI Mall Admin{% endblock %}
+{% block page_title %}Edit Market: {{ market.name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+  .main-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+  @media (min-width: 992px) {
+    .main-container { flex-direction: row; }
+  }
+  .map-sidebar, .form-container {
+    flex: 1;
+    min-width: 0;
+  }
+  @media (min-width: 992px) {
+    .form-container { flex: 2; }
+  }
+  .coordinates-card {
+    background: #f8f9fa;
+    border-left: 4px solid #0d6efd;
+    padding: 1.25rem;
+    border-radius: 0.5rem;
+  }
+  .btn-google {
+    background-color: #4285f4;
+    color: white;
+    border: none;
+    width: 100%;
+    padding: 0.5rem 1rem;
+    font-weight: 600;
+  }
+  .btn-google:hover {
+    background-color: #3367d6;
+    color: white;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="main-container">
+  <!-- Google Maps Instruction -->
+  <div class="map-sidebar">
+    <div class="dashboard-card">
+      <div class="card-header">
+        <h6 class="title-medium mb-0"><i class="fas fa-map-marker-alt me-2"></i>Update Market Location</h6>
+      </div>
+      <div class="card-body">
+        <a
+          href="https://www.google.com/maps/@{{ market.latitude|default:"-6.3690" }},{{ market.longitude|default:"34.8888" }},15z"
+          target="_blank"
+          rel="noopener"
+          class="btn-google"
+        >
+          <i class="fab fa-google me-2"></i> Open Google Maps
+        </a>
+        <p class="text-muted small mt-3">
+          Right-click the exact location → Click “What’s here?” → Copy the coordinates like <code>-6.118182, 39.355143</code>
+        </p>
+
+        <div class="coordinates-card mt-3">
+          <label class="form-label">Paste Coordinates</label>
+          <input
+            type="text"
+            id="coordinateInput"
+            class="form-control form-control-sm"
+            placeholder="e.g., -6.118182, 39.355143"
+            value="{% if market.latitude and market.longitude %}{{ market.latitude }}, {{ market.longitude }}{% endif %}"
+            autocomplete="off"
+          />
+          <small class="text-muted">Paste the full coordinate pair from Google Maps</small>
+        </div>
+
+        <div class="alert alert-warning mt-3 p-2 mb-0">
+          <small><i class="fas fa-exclamation-triangle me-1"></i> Accurate coordinates are required for delivery.</small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Form Section -->
+  <div class="form-container">
+    <div class="dashboard-card">
+      <div class="card-header">
+        <h6 class="title-medium mb-0"><i class="fas fa-store me-2"></i>Edit Market: {{ market.name }}</h6>
+      </div>
+      <div class="card-body">
+        <form method="post" id="marketForm">
+          {% csrf_token %}
+
+          <!-- ✅ HIDDEN COORDINATES — MUST BE INSIDE THE FORM -->
+          <input type="hidden" id="id_latitude" name="latitude" value="{{ market.latitude|default:'' }}">
+          <input type="hidden" id="id_longitude" name="longitude" value="{{ market.longitude|default:'' }}">
+
+          <!-- Basic Info -->
+          <div class="mb-3">
+            <label class="form-label">Market Name <span class="text-danger">*</span></label>
+            <input type="text" name="name" class="form-control" value="{{ market.name }}" required>
+          </div>
+
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <label class="form-label">Area/Location</label>
+              <input type="text" name="location" class="form-control" value="{{ market.location|default:'' }}">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Contact Phone</label>
+              <input type="tel" name="contact_phone" class="form-control" value="{{ market.contact_phone|default:'' }}">
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Full Address</label>
+            <textarea name="address" class="form-control" rows="2">{{ market.address|default:'' }}</textarea>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Description</label>
+            <textarea name="description" class="form-control" rows="3">{{ market.description|default:'' }}</textarea>
+          </div>
+
+          <!-- Schedule -->
+          <div class="mb-3">
+            <label class="form-label">Operating Hours</label>
+            <div class="d-flex align-items-center gap-2">
+              <input type="time" name="opening_time" class="form-control" value="{{ market.opening_time|time:'H:i' }}">
+              <span>to</span>
+              <input type="time" name="closing_time" class="form-control" value="{{ market.closing_time|time:'H:i' }}">
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Market Days</label>
+            <div class="d-flex flex-wrap gap-2 mt-2">
+              {% for day in all_days %}
+                <div>
+                  <input type="checkbox" id="day_{{ day.id }}" name="market_days" value="{{ day.id }}"
+                    {% if day in selected_days %}checked{% endif %}>
+                  <label for="day_{{ day.id }}" class="btn btn-outline-secondary btn-sm">{{ day.get_day_display }}</label>
+                </div>
+              {% endfor %}
+            </div>
+          </div>
+
+          <div class="form-check form-switch mb-4">
+            <input class="form-check-input" type="checkbox" name="is_active" id="is_active" {% if market.is_active %}checked{% endif %}>
+            <label class="form-check-label" for="is_active">Active Market</label>
+          </div>
+
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary">Update Market</button>
+            <a href="{% url 'admin_dashboard:manage-markets' %}" class="btn btn-outline-secondary">Cancel</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('coordinateInput').addEventListener('input', function(e) {
+  const input = e.target.value.trim();
+  const latField = document.getElementById('id_latitude');
+  const lngField = document.getElementById('id_longitude');
+  latField.value = '';
+  lngField.value = '';
+  e.target.classList.remove('is-invalid');
+  if (!input) return;
+  const parts = input.split(',').map(p => p.trim());
+  if (parts.length === 2) {
+    const lat = parseFloat(parts[0]);
+    const lng = parseFloat(parts[1]);
+    if (!isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+      latField.value = lat.toFixed(6);
+      lngField.value = lng.toFixed(6);
+      return;
+    }
+  }
+  e.target.classList.add('is-invalid');
+});
+</script>
+{% endblock %}

@@ -1,0 +1,264 @@
+<!-- admin_dashboard/templates/admin_dashboard/markets/manage_zones.html -->
+{% extends 'admin_dashboard/base.html' %}
+{% load static %}
+
+{% block title %}Zones - {{ market.name }} - AI Mall Admin{% endblock %}
+{% block page_title %}Market Zones: {{ market.name }}{% endblock %}
+
+{% block content %}
+<!-- Stats Cards -->
+<div class="row mb-4">
+  <div class="col-md-4">
+    <div class="dashboard-card p-3">
+      <div class="title-medium">Total: {{ total_zones }}</div>
+      <small class="text-muted">All zones in this market</small>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="dashboard-card p-3">
+      <div class="title-medium text-success">Active: {{ active_zones_count }}</div>
+      <small class="text-muted">Currently operational</small>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="dashboard-card p-3">
+      <div class="title-medium text-warning">Inactive: {{ inactive_zones_count }}</div>
+      <small class="text-muted">Not currently operational</small>
+    </div>
+  </div>
+</div>
+
+<!-- Header with Actions -->
+<div class="dashboard-card mb-4">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+      <div>
+        <h6 class="title-medium mb-1">Manage Zones for "{{ market.name }}"</h6>
+        <p class="text-muted mb-0">Organize market into sections like "Fruits", "Vegetables", "Fish", etc.</p>
+      </div>
+      <div class="d-flex gap-2">
+        <a href="{% url 'admin_dashboard:market-detail' market.id %}" class="btn btn-outline-secondary">
+          <i class="fas fa-arrow-left me-1"></i> Back to Market
+        </a>
+        <a href="{% url 'admin_dashboard:add-market-zone' market.id %}" class="btn btn-primary">
+          <i class="fas fa-plus me-1"></i> Add Zone
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Zones Table -->
+<div class="dashboard-card">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <h6 class="title-medium mb-0">Market Zones</h6>
+    <div class="d-flex gap-2">
+      {% if zones %}
+        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="exportZones()">
+          <i class="fas fa-file-export me-1"></i> Export
+        </button>
+      {% endif %}
+    </div>
+  </div>
+  <div class="card-body p-0">
+    {% if zones %}
+      <!-- Bulk Action Form -->
+      <form method="post" id="bulkForm" action="{% url 'admin_dashboard:bulk-zone-action' market.id %}">
+        {% csrf_token %}
+        <input type="hidden" name="action" id="bulkActionInput">
+        <div class="table-responsive">
+          <table class="data-table table mb-0">
+            <thead>
+              <tr>
+                <th style="width: 40px;">
+                  <input type="checkbox" id="selectAll" class="form-check-input">
+                </th>
+                <th>Zone Name</th>
+                <th>Type</th>
+                <th>Description</th>
+                <th>Products</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for zone in zones %}
+              <tr>
+                <td>
+                  <input type="checkbox" name="zone_ids" value="{{ zone.id }}" class="form-check-input">
+                </td>
+                <td class="title-medium">{{ zone.name }}</td>
+                <td>
+                  {% if zone.zone_type %}
+                    <span class="chip chip-info">{{ zone.zone_type }}</span>
+                  {% else %}
+                    <span class="text-muted">—</span>
+                  {% endif %}
+                </td>
+                <td>{{ zone.description|truncatewords:10|default:"—" }}</td>
+                <td>
+                  <span class="chip chip-primary">{{ zone.products.count }}</span>
+                </td>
+                <td>
+                  {% if zone.is_active %}
+                    <span class="chip chip-success">Active</span>
+                  {% else %}
+                    <span class="chip chip-error">Inactive</span>
+                  {% endif %}
+                </td>
+                <td>
+                  <div class="d-flex gap-1">
+                    <a href="{% url 'admin_dashboard:edit-market-zone' zone.id %}" class="btn btn-outline-primary btn-sm" title="Edit">
+                      <i class="fas fa-edit"></i>
+                    </a>
+                    <form method="post" action="{% url 'admin_dashboard:toggle-zone-status' zone.id %}" 
+                          class="d-inline" onsubmit="return confirmToggleStatus('{{ zone.name }}', {{ zone.is_active|yesno:'true,false' }})">
+                      {% csrf_token %}
+                      <button type="submit" class="btn btn-sm {% if zone.is_active %}btn-outline-warning{% else %}btn-outline-success{% endif %}" 
+                              title="{% if zone.is_active %}Deactivate{% else %}Activate{% endif %}">
+                        <i class="fas fa-power-off"></i>
+                      </button>
+                    </form>
+                    <button class="btn btn-outline-danger btn-sm"
+                            data-bs-toggle="modal"
+                            data-bs-target="#deleteZoneModal{{ zone.id }}"
+                            title="Delete">
+                      <i class="fas fa-trash"></i>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </form>
+
+      <!-- Bulk Action Buttons -->
+      {% if zones|length > 1 %}
+      <div class="p-3 border-top d-flex gap-2">
+        <button type="button" class="btn btn-success btn-sm" onclick="performBulkAction('activate')">
+          <i class="fas fa-play-circle me-1"></i> Activate All
+        </button>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="performBulkAction('deactivate')">
+          <i class="fas fa-pause-circle me-1"></i> Deactivate All
+        </button>
+        <button type="button" class="btn btn-danger btn-sm" onclick="performBulkAction('delete')">
+          <i class="fas fa-trash me-1"></i> Delete Selected
+        </button>
+      </div>
+      {% endif %}
+    {% else %}
+      <div class="empty-state">
+        <i class="fas fa-store"></i>
+        <p>No zones found for this market.</p>
+        <p class="text-muted small mb-3">Zones help organize your market into sections for better management.</p>
+        <a href="{% url 'admin_dashboard:add-market-zone' market.id %}" class="btn btn-primary">
+          <i class="fas fa-plus me-1"></i> Create First Zone
+        </a>
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Delete Zone Modals -->
+{% for zone in zones %}
+<div class="modal fade" id="deleteZoneModal{{ zone.id }}" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Delete Zone</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p>Are you sure you want to delete <strong>{{ zone.name }}</strong>?</p>
+        <div class="alert alert-warning small">
+          <i class="fas fa-exclamation-triangle me-2"></i>
+          This action cannot be undone. The following will be affected:
+          <ul class="mb-0 mt-1">
+            <li>Zone will be removed from the market</li>
+            <li>Products assigned to this zone will need reassignment</li>
+            <li>Vendor assignments to this zone will be cleared</li>
+          </ul>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <form method="post" action="{% url 'admin_dashboard:delete-market-zone' zone.id %}">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-danger">Delete Zone</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endfor %}
+
+<div class="mt-3 text-muted small">
+  <i class="fas fa-info-circle me-1"></i> 
+  {{ zones|length }} zone{% if zones|length != 1 %}s{% endif %} in "{{ market.name }}"
+  {% if active_zones_count > 0 %} • {{ active_zones_count }} active{% endif %}
+  {% if inactive_zones_count > 0 %} • {{ inactive_zones_count }} inactive{% endif %}
+</div>
+
+<script>
+// Bulk action functionality
+function performBulkAction(action) {
+  const checkboxes = document.querySelectorAll('input[name="zone_ids"]:checked');
+  if (checkboxes.length === 0) {
+    alert('Please select at least one zone.');
+    return;
+  }
+  
+  const actionText = action === 'activate' ? 'activate' : 
+                    action === 'deactivate' ? 'deactivate' : 'delete';
+  
+  if (confirm(`Are you sure you want to ${actionText} ${checkboxes.length} zone(s)?`)) {
+    document.getElementById('bulkActionInput').value = action;
+    document.getElementById('bulkForm').submit();
+  }
+}
+
+// Select all checkbox
+document.getElementById('selectAll').addEventListener('change', function() {
+  const checkboxes = document.querySelectorAll('input[name="zone_ids"]');
+  checkboxes.forEach(cb => cb.checked = this.checked);
+});
+
+// Toggle status confirmation
+function confirmToggleStatus(zoneName, isActive) {
+  const action = isActive ? 'deactivate' : 'activate';
+  return confirm(`Are you sure you want to ${action} "${zoneName}"?`);
+}
+
+// Export function (placeholder)
+function exportZones() {
+  // You can implement CSV export functionality here
+  alert('Export functionality will be implemented here');
+}
+
+// Initialize tooltips
+document.addEventListener('DOMContentLoaded', function() {
+  const tooltipTriggerList = [].slice.call(document.querySelectorAll('[title]'));
+  tooltipTriggerList.map(function (tooltipTriggerEl) {
+    return new bootstrap.Tooltip(tooltipTriggerEl);
+  });
+});
+</script>
+
+<style>
+.chip {
+  display: inline-block;
+  padding: 0.25rem 0.6rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 12px;
+  line-height: 1;
+}
+.chip-primary { background-color: #e3f2fd; color: #1565c0; }
+.chip-success { background-color: #e8f5e9; color: #2e7d32; }
+.chip-error { background-color: #ffebee; color: #c62828; }
+.chip-warning { background-color: #fff3e0; color: #ef6c00; }
+.chip-info { background-color: #e0f7fa; color: #006064; }
+</style>
+{% endblock %}

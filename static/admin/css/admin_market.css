@@ -1,0 +1,63 @@
+/* admin_market.css */
+
+/* Leaflet map styling in admin */
+.leaflet-container {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: 14px;
+}
+
+.field-market_days_list div {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+/* Styling for coordinates display */
+.readonly {
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-family: monospace;
+}
+
+/* Custom help text styling */
+.help strong {
+    color: #0c5460;
+}
+
+/* Map preview in change form */
+.map-preview {
+    margin: 10px 0;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+/* Statistics boxes */
+.stats-box {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    padding: 15px;
+    margin: 10px 0;
+}
+
+.stats-box h3 {
+    margin-top: 0;
+    color: #495057;
+    font-size: 16px;
+}
+
+.stats-box .stat-number {
+    font-size: 24px;
+    font-weight: bold;
+    color: #007bff;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .leaflet-container {
+        height: 300px !important;
+    }
+}

@@ -1,0 +1,70 @@
+{% extends 'vendor_dashboard/auth_base.html' %}
+{% load static %}
+
+{% block title %}Register - Vendor Dashboard{% endblock %}
+{% block auth_title %}Become a Vendor{% endblock %}
+{% block auth_subtitle %}Join AI Mall and start selling{% endblock %}
+
+{% block content %}
+<form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    
+    <h6 class="title-medium mb-3">Account Details</h6>
+    <div class="row">
+        <div class="col-md-6 mb-3">
+            {{ form.phone_number.label_tag }}
+            {{ form.phone_number }}
+        </div>
+        <div class="col-md-6 mb-3">
+            {{ form.password.label_tag }}
+            {{ form.password }}
+        </div>
+        <div class="col-md-6 mb-3">
+            {{ form.password_confirm.label_tag }}
+            {{ form.password_confirm }}
+        </div>
+    </div>
+
+    <h6 class="title-medium mb-3 mt-4">Business Information</h6>
+    <div class="mb-3">
+        {{ form.names.label_tag }}
+        {{ form.names }}
+    </div>
+    <div class="mb-3">
+        {{ form.business_name.label_tag }}
+        {{ form.business_name }}
+    </div>
+    <div class="mb-3">
+        {{ form.business_address.label_tag }}
+        {{ form.business_address }}
+    </div>
+    <div class="row">
+        <div class="col-md-6 mb-3">
+            {{ form.business_license.label_tag }}
+            {{ form.business_license }}
+        </div>
+        <div class="col-md-6 mb-3">
+            {{ form.zanzibar_id.label_tag }}
+            {{ form.zanzibar_id }}
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-md-6 mb-3">
+            {{ form.license_document.label_tag }}
+            {{ form.license_document }}
+        </div>
+        <div class="col-md-6 mb-3">
+            {{ form.id_document.label_tag }}
+            {{ form.id_document }}
+        </div>
+    </div>
+
+    <button type="submit" class="btn btn-primary w-100 py-2 mt-2">Register Vendor Account</button>
+</form>
+<div class="text-center mt-3">
+    <p class="body-medium text-muted">
+        Already have an account? 
+        <a href="{% url 'vendor_dashboard:login' %}" class="link-primary fw-bold">Sign In</a>
+    </p>
+</div>
+{% endblock %}

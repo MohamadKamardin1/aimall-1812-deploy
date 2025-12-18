@@ -1,0 +1,81 @@
+<!-- vendor_detail.html -->
+{% extends 'admin_dashboard/base.html' %}
+{% block page_title %}Vendor: {{ vendor.business_name }}{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-md-8">
+    <div class="dashboard-card">
+      <div class="card-header">
+        <h6 class="title-medium mb-0">Vendor Details</h6>
+      </div>
+      <div class="card-body">
+        <p><strong>Business:</strong> {{ vendor.business_name }}</p>
+        <p><strong>Owner:</strong> {{ vendor.names }}</p>
+        <p><strong>Phone:</strong> {{ vendor.user.phone_number }}</p>
+        <p><strong>License:</strong> {{ vendor.business_license|default:"N/A" }}</p>
+        <p><strong>Status:</strong>
+          {% if vendor.user.is_active %}
+            <span class="chip chip-success">Active</span>
+          {% else %}
+            <span class="chip chip-error">Suspended</span>
+          {% endif %}
+        </p>
+        <p><strong>Verified:</strong>
+          {% if vendor.is_verified %}
+            <span class="chip chip-success">Yes ({{ vendor.verified_at|date }})</span>
+          {% else %}
+            <span class="chip chip-warning">No</span>
+          {% endif %}
+        </p>
+      </div>
+    </div>
+
+    <!-- Products -->
+    <div class="dashboard-card mt-4">
+      <div class="card-header">
+        <h6 class="title-medium mb-0">Products ({{ products.count }})</h6>
+      </div>
+      <div class="card-body">
+        {% for variant in products %}
+          <div class="d-flex justify-content-between py-2 border-bottom">
+            <div>{{ variant.product_template.name }} ({{ variant.unit_type }})</div>
+            <span class="badge bg-primary">{{ variant.price }} TZS</span>
+          </div>
+        {% empty %}
+          <p class="text-muted">No products listed.</p>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Actions Sidebar -->
+  <div class="col-md-4">
+    <div class="dashboard-card">
+      <div class="card-header">
+        <h6 class="title-medium mb-0">Actions</h6>
+      </div>
+      <div class="card-body">
+        {% if not vendor.is_verified %}
+          <form method="post" action="{% url 'admin_dashboard:verify-vendor' vendor.user.id %}" class="mb-2">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-success w-100">✅ Verify Vendor</button>
+          </form>
+        {% endif %}
+
+        {% if vendor.user.is_active %}
+          <form method="post" action="{% url 'admin_dashboard:suspend-vendor' vendor.user.id %}" class="mb-2">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-warning w-100">⏸️ Suspend</button>
+          </form>
+        {% else %}
+          <form method="post" action="{% url 'admin_dashboard:activate-vendor' vendor.user.id %}" class="mb-2">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-info w-100">▶️ Activate</button>
+          </form>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,151 @@
+<!-- admin_dashboard/templates/admin_dashboard/vendors/vendor_detail.html -->
+{% extends 'admin_dashboard/base.html' %}
+{% load static %}
+
+{% block title %}Vendor: {{ vendor.business_name }}{% endblock %}
+{% block page_title %}Vendor Details{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-lg-8">
+    <div class="dashboard-card">
+      <div class="card-header">
+        <h6 class="title-medium mb-0">{{ vendor.business_name }}</h6>
+      </div>
+      <div class="card-body">
+        <div class="row">
+          <div class="col-md-6">
+            <p><strong>Owner:</strong> {{ vendor.names }}</p>
+            <p><strong>Phone:</strong> {{ vendor.user.phone_number }}</p>
+            <p><strong>Email:</strong> {{ vendor.user.email|default:"—" }}</p>
+            <p><strong>Business License:</strong> {{ vendor.business_license|default:"Not provided" }}</p>
+          </div>
+          <div class="col-md-6">
+            <p><strong>Status:</strong>
+              {% if vendor.user.is_active %}
+                <span class="chip chip-success">Active</span>
+              {% else %}
+                <span class="chip chip-error">Suspended</span>
+              {% endif %}
+            </p>
+            <p><strong>Verified:</strong>
+              {% if vendor.is_verified %}
+                <span class="chip chip-success">Yes ({{ vendor.verified_at|date:"M d, Y" }})</span>
+              {% else %}
+                <span class="chip chip-warning">No</span>
+              {% endif %}
+            </p>
+            <p><strong>Joined:</strong> {{ vendor.user.date_joined|date:"M d, Y" }}</p>
+            <p><strong>Location:</strong> {{ vendor.user.location|default:"—" }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Products -->
+    <div class="dashboard-card mt-4">
+      <div class="card-header d-flex justify-content-between">
+        <h6 class="title-medium mb-0">Products ({{ products.count }})</h6>
+        <!-- Link to product management later -->
+      </div>
+      <div class="card-body p-0">
+        {% if products %}
+          <div class="table-responsive">
+            <table class="table mb-0">
+              <thead>
+                <tr>
+                  <th>Product</th>
+                  <th>Zone</th>
+                  <th>Price (TZS)</th>
+                  <th>Stock</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for variant in products %}
+                <tr>
+                  <td>{{ variant.product_template.name }}</td>
+                  <td>{{ variant.market_zone.name }}</td>
+                  <td>{{ variant.selling_price_base|floatformat:0 }}</td>
+                  <td>
+                    {% if variant.is_in_stock %}
+                      <span class="chip chip-success">{{ variant.current_stock }}</span>
+                    {% else %}
+                      <span class="chip chip-error">Out of Stock</span>
+                    {% endif %}
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="p-3 text-center text-muted">
+            <i class="fas fa-box-open me-2"></i>No products listed.
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Actions Sidebar -->
+  <div class="col-lg-4">
+    <div class="dashboard-card">
+      <div class="card-header">
+        <h6 class="title-medium mb-0">Actions</h6>
+      </div>
+      <div class="card-body">
+        {% if not vendor.is_verified %}
+          <form method="post" action="{% url 'admin_dashboard:verify-vendor' vendor.user.id %}" class="mb-3">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-success w-100">
+              <i class="fas fa-check-circle me-1"></i> Verify Vendor
+            </button>
+          </form>
+        {% endif %}
+
+        {% if vendor.user.is_active %}
+          <form method="post" action="{% url 'admin_dashboard:suspend-vendor' vendor.user.id %}" class="mb-3">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-warning w-100" onclick="return confirm('Suspend {{ vendor.business_name }}?');">
+              <i class="fas fa-pause-circle me-1"></i> Suspend
+            </button>
+          </form>
+        {% else %}
+          <form method="post" action="{% url 'admin_dashboard:activate-vendor' vendor.user.id %}" class="mb-3">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-info w-100">
+              <i class="fas fa-play-circle me-1"></i> Activate
+            </button>
+          </form>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Recent Orders -->
+    <div class="dashboard-card mt-4">
+      <div class="card-header">
+        <h6 class="title-medium mb-0">Recent Orders</h6>
+      </div>
+      <div class="card-body">
+        {% if order %}
+          <ul class="list-unstyled">
+            {% for ord in order %}
+              <li class="mb-2 pb-2 border-bottom">
+                <div class="d-flex justify-content-between">
+                  <span class="body-medium">Order #{{ ord.order_number }}</span>
+                  <span class="chip chip-{{ ord.status }}">
+                    {{ ord.get_status_display }}
+                  </span>
+                </div>
+                <div class="body-small text-muted">Tsh {{ ord.total_amount|floatformat:0 }} • {{ ord.created_at|date:"M d" }}</div>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="body-medium text-muted">No recent orders.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

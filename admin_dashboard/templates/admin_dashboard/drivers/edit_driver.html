@@ -1,0 +1,65 @@
+<!-- admin_dashboard/templates/admin_dashboard/drivers/edit_driver.html -->
+{% extends 'admin_dashboard/base.html' %}
+{% load static %}
+
+{% block title %}Edit Driver - {{ driver.names }}{% endblock %}
+{% block page_title %}Edit Bodaboda Driver{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+    <div class="dashboard-card">
+      <div class="card-header">
+        <h6 class="title-medium mb-0">Edit: {{ driver.names }}</h6>
+      </div>
+      <div class="card-body">
+        <form method="post">
+          {% csrf_token %}
+          <div class="mb-3">
+            <label class="form-label body-medium">Full Name *</label>
+            <input type="text" name="names" class="form-control" required value="{{ driver.names }}">
+          </div>
+          <div class="mb-3">
+            <label class="form-label body-medium">Phone Number *</label>
+            <input type="text" name="phone_number" class="form-control" required value="{{ driver.user.phone_number }}">
+          </div>
+          <div class="mb-3">
+            <label class="form-label body-medium">Email</label>
+            <input type="email" name="email" class="form-control" value="{{ driver.user.email|default:'' }}">
+          </div>
+          <div class="mb-3">
+            <label class="form-label body-medium">License Number *</label>
+            <input type="text" name="license_number" class="form-control" required value="{{ driver.license_number }}">
+          </div>
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label body-medium">Vehicle Type *</label>
+              <select name="vehicle_type" class="form-select" required>
+                <option value="Motorcycle" {% if driver.vehicle_type == 'Motorcycle' %}selected{% endif %}>Motorcycle</option>
+                <option value="Bicycle" {% if driver.vehicle_type == 'Bicycle' %}selected{% endif %}>Bicycle</option>
+                <option value="Tricycle" {% if driver.vehicle_type == 'Tricycle' %}selected{% endif %}>Tricycle</option>
+              </select>
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label body-medium">Vehicle Plate *</label>
+              <input type="text" name="vehicle_plate" class="form-control" required value="{{ driver.vehicle_plate }}">
+            </div>
+          </div>
+          <div class="form-check mb-3">
+            <input class="form-check-input" type="checkbox" name="is_active" id="is_active" {% if driver.user.is_active %}checked{% endif %}>
+            <label class="form-check-label body-medium" for="is_active">Active Account</label>
+          </div>
+          <div class="form-check mb-3">
+            <input class="form-check-input" type="checkbox" name="is_available" id="is_available" {% if driver.is_available %}checked{% endif %}>
+            <label class="form-check-label body-medium" for="is_available">Currently Available</label>
+          </div>
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary">Update Driver</button>
+            <a href="{% url 'admin_dashboard:driver-detail' driver.user.id %}" class="btn btn-outline-secondary">Cancel</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

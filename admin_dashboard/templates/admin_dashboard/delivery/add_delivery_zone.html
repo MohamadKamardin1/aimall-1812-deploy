@@ -1,0 +1,151 @@
+<!-- admin_dashboard/templates/admin_dashboard/delivery/add_delivery_zone.html -->
+{% extends 'admin_dashboard/base.html' %}
+{% load static %}
+
+{% block title %}Add Delivery Zone - {{ market.name }}{% endblock %}
+{% block page_title %}Add Delivery Zone{% endblock %}
+
+{% block extra_css %}
+<style>
+  .main-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+  @media (min-width: 992px) {
+    .main-container { flex-direction: row; }
+  }
+  .form-container { flex: 2; min-width: 0; }
+  .info-container { flex: 1; min-width: 0; }
+  .zone-type-card {
+    background: #f8f9fa;
+    border-radius: 10px;
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+  }
+  .zone-type-card h6 {
+    margin-bottom: 0.75rem;
+    color: #5e35b1;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="main-container">
+  <div class="form-container">
+    <div class="dashboard-card">
+      <div class="card-header">
+        <h6 class="title-medium mb-0">Add Delivery Zone to {{ market.name }}</h6>
+      </div>
+      <div class="card-body">
+        <form method="post">
+          {% csrf_token %}
+          <div class="mb-3">
+            <label class="form-label">Zone Name <span class="text-danger">*</span></label>
+            <input type="text" name="name" class="form-control" required placeholder="e.g., Kariakoo Central">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Zone Type</label>
+            <select name="zone_type" class="form-select">
+              {% for value, label in zone_type_choices %}
+                <option value="{{ value }}">{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Priority (lower = higher priority)</label>
+            <input type="number" name="priority" class="form-control" value="1" min="1">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Description</label>
+            <textarea name="description" class="form-control" rows="3" placeholder="Optional description..."></textarea>
+          </div>
+
+          <!-- Pricing fields -->
+          <div id="fixedPriceField" class="mb-3" style="display: none;">
+            <label class="form-label">Fixed Price (TZS)</label>
+            <input type="number" name="fixed_price" class="form-control" placeholder="e.g., 2000" step="100">
+          </div>
+          <div id="surchargeField" class="mb-3" style="display: none;">
+            <label class="form-label">Surcharge (%)</label>
+            <input type="number" name="surcharge_percent" class="form-control" placeholder="e.g., 15" step="0.1">
+          </div>
+
+          <!-- Coordinates (optional for center point) -->
+          <div class="mb-3">
+            <label class="form-label">Center Point Coordinates (optional)</label>
+            <div class="row g-2">
+              <div class="col-md-6">
+                <input type="text" name="center_latitude" class="form-control" placeholder="Latitude">
+              </div>
+              <div class="col-md-6">
+                <input type="text" name="center_longitude" class="form-control" placeholder="Longitude">
+              </div>
+            </div>
+            <small class="text-muted">Used for distance calculation if enabled</small>
+          </div>
+
+          <div class="form-check form-switch mb-4">
+            <input class="form-check-input" type="checkbox" name="is_active" id="is_active" checked>
+            <label class="form-check-label" for="is_active">Active Zone</label>
+          </div>
+
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary">Create Delivery Zone</button>
+            <a href="{% url 'admin_dashboard:manage-delivery-zones' market.id %}" class="btn btn-outline-secondary">Cancel</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="info-container">
+    <div class="dashboard-card mb-4">
+      <div class="card-header">
+        <h6 class="title-medium mb-0">Zone Types</h6>
+      </div>
+      <div class="card-body">
+        <div class="zone-type-card">
+          <h6>Standard</h6>
+          <p class="text-muted small mb-0">Uses global delivery fee configuration</p>
+        </div>
+        <div class="zone-type-card">
+          <h6>Fixed Price</h6>
+          <p class="text-muted small mb-0">Charges a fixed delivery fee regardless of distance</p>
+        </div>
+        <div class="zone-type-card">
+          <h6>Surcharge</h6>
+          <p class="text-muted small mb-0">Adds a percentage on top of calculated fee</p>
+        </div>
+      </div>
+    </div>
+
+    {% if fee_config %}
+    <div class="dashboard-card">
+      <div class="card-header">
+        <h6 class="title-medium mb-0">Active Fee Config</h6>
+      </div>
+      <div class="card-body">
+        <p class="mb-1"><strong>{{ fee_config.name }}</strong></p>
+        <small class="text-muted">
+          Base: {{ fee_config.base_fee|floatformat:0 }} TZS<br>
+          Per km: {{ fee_config.per_km_rate|floatformat:0 }} TZS
+        </small>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<script>
+document.querySelector('select[name="zone_type"]').addEventListener('change', function(e) {
+  document.getElementById('fixedPriceField').style.display = 'none';
+  document.getElementById('surchargeField').style.display = 'none';
+  if (e.target.value === 'fixed') {
+    document.getElementById('fixedPriceField').style.display = 'block';
+  } else if (e.target.value === 'surcharge') {
+    document.getElementById('surchargeField').style.display = 'block';
+  }
+});
+</script>
+{% endblock %}

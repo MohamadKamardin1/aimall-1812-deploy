@@ -1,0 +1,474 @@
+{% extends 'admin_dashboard/base.html' %}
+{% load static %}
+
+{% block title %}Markets Management - AI Mall Admin{% endblock %}
+{% block page_title %}Markets Management{% endblock %}
+
+{% block extra_css %}
+<style>
+  .market-actions .btn-sm {
+    padding: 0.2rem 0.4rem;
+    font-size: 0.75rem;
+  }
+
+  .badge-day {
+    background-color: #e3f2fd;
+    color: #1976d2;
+    font-size: 0.85rem;
+    padding: 0.25rem 0.6rem;
+    border-radius: 20px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .chip {
+    display: inline-block;
+    padding: 0.25rem 0.6rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border-radius: 12px;
+    line-height: 1;
+  }
+  .chip-primary { background-color: #e3f2fd; color: #1565c0; }
+  .chip-success { background-color: #e8f5e9; color: #2e7d32; }
+  .chip-error { background-color: #ffebee; color: #c62828; }
+  .chip-warning { background-color: #fff3e0; color: #ef6c00; }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Chart initialization
+  const ctx = document.getElementById('marketsChart');
+  if (ctx) {
+    new Chart(ctx.getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: ['Total Markets', 'Active Markets', 'Market Zones', 'Delivery Zones'],
+        datasets: [{
+          label: 'Count',
+          data: [
+            {{ total_markets }},
+            {{ active_markets }},
+            {{ total_market_zones }},
+            {{ total_delivery_zones }}
+          ],
+          backgroundColor: [
+            'rgba(46, 125, 50, 0.8)',
+            'rgba(76, 175, 80, 0.8)',
+            'rgba(33, 150, 243, 0.8)',
+            'rgba(156, 39, 176, 0.8)'
+          ],
+          borderColor: [
+            'rgba(46, 125, 50, 1)',
+            'rgba(76, 175, 80, 1)',
+            'rgba(33, 150, 243, 1)',
+            'rgba(156, 39, 176, 1)'
+          ],
+          borderWidth: 1
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                return `${context.dataset.label}: ${context.parsed.y}`;
+              }
+            }
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: { 
+              precision: 0,
+              callback: function(value) {
+                if (Number.isInteger(value)) return value;
+              }
+            },
+            grid: { drawBorder: false }
+          },
+          x: {
+            grid: { display: false }
+          }
+        }
+      }
+    });
+  }
+
+  // Bulk action functionality
+  function performBulkAction(action) {
+    const checkboxes = document.querySelectorAll('input[name="market_ids"]:checked');
+    if (checkboxes.length === 0) {
+      alert('Please select at least one market.');
+      return;
+    }
+    
+    const actionText = action === 'activate' ? 'activate' : 
+                      action === 'deactivate' ? 'deactivate' : 'delete';
+    const confirmText = action === 'delete' ? 
+      'This will permanently delete the selected markets and all associated data. Continue?' :
+      `Are you sure you want to ${actionText} ${checkboxes.length} market(s)?`;
+    
+    if (confirm(confirmText)) {
+      document.getElementById('bulkActionInput').value = action;
+      document.getElementById('bulkForm').submit();
+    }
+  }
+
+  // Select all checkbox
+  const selectAllCheckbox = document.getElementById('selectAll');
+  if (selectAllCheckbox) {
+    selectAllCheckbox.addEventListener('change', function() {
+      const checkboxes = document.querySelectorAll('input[name="market_ids"]');
+      checkboxes.forEach(cb => cb.checked = this.checked);
+    });
+  }
+
+  // Market status toggle
+  document.querySelectorAll('.toggle-market-status').forEach(button => {
+    button.addEventListener('click', function(e) {
+      e.preventDefault();
+      const marketId = this.dataset.marketId;
+      const marketName = this.dataset.marketName;
+      const isActive = this.dataset.active === 'true';
+      const newStatus = !isActive;
+      
+      if (confirm(`Are you sure you want to ${newStatus ? 'activate' : 'deactivate'} "${marketName}"?`)) {
+        const form = document.getElementById('statusForm' + marketId);
+        if (form) {
+          form.submit();
+        }
+      }
+    });
+  });
+
+  // Filter functionality (client-side if not server-side)
+  const searchInput = document.getElementById('marketSearch');
+  const statusFilter = document.getElementById('statusFilter');
+  const marketRows = document.querySelectorAll('tbody tr');
+
+  function filterMarkets() {
+    if (!searchInput || !statusFilter) return;
+    
+    const searchTerm = searchInput.value.toLowerCase();
+    const statusValue = statusFilter.value;
+    
+    marketRows.forEach(row => {
+      const marketName = row.querySelector('.market-name')?.textContent.toLowerCase() || '';
+      const statusCell = row.querySelector('.market-status');
+      const marketStatus = statusCell?.textContent || '';
+      
+      const statusMatch = statusValue === 'all' ||
+        (statusValue === 'active' && marketStatus.includes('Active')) ||
+        (statusValue === 'inactive' && marketStatus.includes('Inactive'));
+      
+      const searchMatch = marketName.includes(searchTerm);
+      row.style.display = (searchMatch && statusMatch) ? '' : 'none';
+    });
+  }
+
+  if (searchInput && statusFilter) {
+    searchInput.addEventListener('input', filterMarkets);
+    statusFilter.addEventListener('change', filterMarkets);
+  }
+});
+</script>
+{% endblock %}
+
+{% block content %}
+<!-- Stats Cards -->
+<div class="row mb-4">
+  <div class="col-md-3">
+    <div class="dashboard-card p-3">
+      <div class="title-medium">Total: {{ total_markets }}</div>
+      <small class="text-muted">{{ active_markets }} active</small>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="dashboard-card p-3">
+      <div class="title-medium text-info">Zones: {{ total_market_zones }}</div>
+      <small class="text-muted">Internal zones</small>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="dashboard-card p-3">
+      <div class="title-medium text-success">Delivery: {{ total_delivery_zones }}</div>
+      <small class="text-muted">For customer delivery</small>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="dashboard-card p-3">
+      <div class="title-medium {% if fee_config_status == 'Active' %}text-success{% else %}text-warning{% endif %}">
+        {{ fee_config_status }}
+      </div>
+      <small class="text-muted">Delivery pricing</small>
+    </div>
+  </div>
+</div>
+
+<!-- Quick Actions & Chart Row -->
+<div class="row mb-4">
+  <div class="col-md-8">
+    <div class="dashboard-card h-100">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h6 class="title-medium mb-0">Markets Overview</h6>
+        <span class="text-muted small">Last updated: {{ today|date:"F j, Y" }}</span>
+      </div>
+      <div class="card-body">
+        <div style="height: 250px;">
+          <canvas id="marketsChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="dashboard-card h-100">
+      <div class="card-body">
+        <h6 class="title-medium mb-3">Quick Actions</h6>
+        <div class="d-grid gap-2">
+          <a href="{% url 'admin_dashboard:add-market' %}" class="btn btn-primary">
+            <i class="fas fa-plus me-2"></i>Add Market
+          </a>
+          <a href="{% url 'admin_dashboard:manage-market-days' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-calendar-alt me-2"></i>Market Days
+          </a>
+          <a href="{% url 'admin_dashboard:delivery-dashboard' %}" class="btn btn-outline-info">
+            <i class="fas fa-truck me-2"></i>Delivery Dashboard
+          </a>
+          <a href="{% url 'admin_dashboard:manage-delivery-fee-configs' %}" class="btn btn-outline-warning">
+            <i class="fas fa-cog me-2"></i>Fee Configuration
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Search and Filter Bar -->
+<div class="search-filter-bar mb-4">
+  <div class="row g-3">
+    <div class="col-md-6">
+      <div class="input-group">
+        <span class="input-group-text"><i class="fas fa-search"></i></span>
+        <input type="text" id="marketSearch" class="form-control" placeholder="Search markets by name...">
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="input-group">
+        <span class="input-group-text"><i class="fas fa-filter"></i></span>
+        <select id="statusFilter" class="form-select">
+          <option value="all">All Status</option>
+          <option value="active">Active Only</option>
+          <option value="inactive">Inactive Only</option>
+        </select>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Markets Table -->
+<div class="dashboard-card">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <h6 class="title-medium mb-0">Markets List</h6>
+    <div class="d-flex gap-2">
+      <a href="{% url 'admin_dashboard:export-markets-csv' %}" class="btn btn-outline-secondary btn-sm">
+        <i class="fas fa-file-csv me-1"></i> Export CSV
+      </a>
+      <a href="{% url 'admin_dashboard:add-market' %}" class="btn btn-primary btn-sm">
+        <i class="fas fa-plus me-1"></i> Add Market
+      </a>
+    </div>
+  </div>
+  <div class="card-body p-0">
+    {% if markets %}
+      <!-- Bulk Action Form -->
+      <form method="post" id="bulkForm" action="{% url 'admin_dashboard:bulk-market-action' %}">
+        {% csrf_token %}
+        <input type="hidden" name="action" id="bulkActionInput">
+        <div class="table-responsive">
+          <table class="data-table table mb-0">
+            <thead>
+              <tr>
+                <th style="width: 40px;">
+                  <input type="checkbox" id="selectAll" class="form-check-input">
+                </th>
+                <th>Market</th>
+                <th>Location</th>
+                <th>Contact</th>
+                <th>Market Days</th>
+                <th>Zones</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for market in markets %}
+              <tr>
+                <td>
+                  <input type="checkbox" name="market_ids" value="{{ market.id }}" class="form-check-input">
+                </td>
+                <td>
+                  <div class="d-flex align-items-center">
+                    <div class="me-2 text-primary">
+                      <i class="fas fa-store"></i>
+                    </div>
+                    <div>
+                      <div class="title-medium market-name">{{ market.name }}</div>
+                      <small class="text-muted">{{ market.description|truncatechars:50 }}</small>
+                    </div>
+                  </div>
+                </td>
+                <td>
+                  {% if market.location %}
+                    <span>{{ market.location }}</span>
+                    {% if market.latitude and market.longitude %}
+                      <br><small class="text-muted">{{ market.latitude|floatformat:4 }}, {{ market.longitude|floatformat:4 }}</small>
+                    {% endif %}
+                  {% else %}
+                    <span class="text-muted">—</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if market.contact_phone %}
+                    {{ market.contact_phone }}
+                  {% else %}
+                    <span class="text-muted">—</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if market.compact_market_days != "No days set" %}
+                    <span class="chip chip-primary">{{ market.compact_market_days }}</span>
+                  {% else %}
+                    <span class="chip chip-warning">No days</span>
+                  {% endif %}
+                </td>
+                <td>
+                  <div class="d-flex flex-column gap-1">
+                    <span class="badge bg-info">
+                      <i class="fas fa-store me-1"></i> {{ market.active_zones_count }}
+                    </span>
+                    <span class="badge bg-success">
+                      <i class="fas fa-truck me-1"></i> {{ market.active_delivery_zones_count }}
+                    </span>
+                  </div>
+                </td>
+                <td>
+                  <span class="market-status">
+                    {% if market.is_active %}
+                      <span class="chip chip-success">Active</span>
+                    {% else %}
+                      <span class="chip chip-error">Inactive</span>
+                    {% endif %}
+                  </span>
+                </td>
+                <td>
+                  <div class="market-actions">
+                    <a href="{% url 'admin_dashboard:market-detail' market.id %}" class="btn btn-outline-primary btn-sm" title="View">
+                      <i class="fas fa-eye"></i>
+                    </a>
+                    <a href="{% url 'admin_dashboard:edit-market' market.id %}" class="btn btn-outline-secondary btn-sm" title="Edit">
+                      <i class="fas fa-edit"></i>
+                    </a>
+                    <a href="{% url 'admin_dashboard:manage-market-zones' market.id %}" class="btn btn-outline-info btn-sm" title="Zones">
+                      <i class="fas fa-store"></i>
+                    </a>
+                    <a href="{% url 'admin_dashboard:manage-delivery-zones' market.id %}" class="btn btn-outline-success btn-sm" title="Delivery">
+                      <i class="fas fa-truck"></i>
+                    </a>
+                    <form method="post" action="{% url 'admin_dashboard:toggle-market-status' market.id %}" 
+                          id="statusForm{{ market.id }}" class="d-inline">
+                      {% csrf_token %}
+                      <button type="button" class="btn btn-sm {% if market.is_active %}btn-outline-warning{% else %}btn-outline-success{% endif %} toggle-market-status"
+                              data-market-id="{{ market.id }}"
+                              data-market-name="{{ market.name }}"
+                              data-active="{{ market.is_active|yesno:'true,false' }}"
+                              title="{% if market.is_active %}Deactivate{% else %}Activate{% endif %}">
+                        <i class="fas fa-power-off"></i>
+                      </button>
+                    </form>
+                    <button class="btn btn-outline-danger btn-sm"
+                            data-bs-toggle="modal"
+                            data-bs-target="#deleteModal{{ market.id }}"
+                            title="Delete">
+                      <i class="fas fa-trash"></i>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </form>
+
+      <!-- Bulk Action Buttons -->
+      {% if markets|length > 1 %}
+      <div class="p-3 border-top d-flex gap-2">
+        <button type="button" class="btn btn-success btn-sm" onclick="performBulkAction('activate')">
+          <i class="fas fa-play-circle me-1"></i> Activate Selected
+        </button>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="performBulkAction('deactivate')">
+          <i class="fas fa-pause-circle me-1"></i> Deactivate Selected
+        </button>
+        <button type="button" class="btn btn-danger btn-sm" onclick="performBulkAction('delete')">
+          <i class="fas fa-trash me-1"></i> Delete Selected
+        </button>
+      </div>
+      {% endif %}
+    {% else %}
+      <div class="empty-state">
+        <i class="fas fa-store"></i>
+        <p>No markets found.</p>
+        <a href="{% url 'admin_dashboard:add-market' %}" class="btn btn-primary mt-2">Add Market</a>
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Delete Modals -->
+{% for market in markets %}
+<div class="modal fade" id="deleteModal{{ market.id }}" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Delete Market</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p>Are you sure you want to delete <strong>{{ market.name }}</strong>?</p>
+        <div class="alert alert-warning small">
+          <i class="fas fa-exclamation-triangle me-2"></i>
+          This action cannot be undone. The following will be deleted:
+          <ul class="mb-0 mt-1">
+            <li>All associated market zones</li>
+            <li>All delivery zones</li>
+            <li>Market schedule and days</li>
+            <li>All associated customer addresses</li>
+          </ul>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <form method="post" action="{% url 'admin_dashboard:delete-market' market.id %}">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-danger">Delete Market</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endfor %}
+
+<div class="mt-3 text-muted small">
+  <i class="fas fa-info-circle me-1"></i> 
+  {{ markets|length }} market{% if markets|length != 1 %}s{% endif %}
+  {% if active_markets > 0 %} • {{ active_markets }} active{% endif %}
+</div>
+{% endblock %}

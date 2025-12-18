@@ -1,0 +1,171 @@
+<!-- admin_dashboard/templates/admin_dashboard/vendors/manage_vendors.html -->
+{% extends 'admin_dashboard/base.html' %}
+{% load static %}
+
+{% block title %}Vendors - AI Mall Admin{% endblock %}
+{% block page_title %}Vendors{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+  <div class="col-md-3">
+    <div class="dashboard-card p-3">
+      <div class="title-medium">Total: {{ total_vendors }}</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="dashboard-card p-3">
+      <div class="title-medium text-success">Verified: {{ verified_vendors }}</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="dashboard-card p-3">
+      <div class="title-medium text-warning">Pending: {{ pending_vendors }}</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="dashboard-card p-3">
+      <div class="title-medium">Active: {{ active_vendors }}</div>
+    </div>
+  </div>
+</div>
+
+<!-- Filter Bar -->
+<div class="search-filter-bar">
+  <form method="get" class="row g-3">
+    <div class="col-md-4">
+      <input type="text" name="q" value="{{ filters.search }}" class="form-control" placeholder="Search by name, business, phone...">
+    </div>
+    <div class="col-md-3">
+      <select name="status" class="form-select">
+        <option value="all" {% if filters.status == 'all' %}selected{% endif %}>All Status</option>
+        <option value="verified" {% if filters.status == 'verified' %}selected{% endif %}>Verified</option>
+        <option value="pending" {% if filters.status == 'pending' %}selected{% endif %}>Pending</option>
+        <option value="active" {% if filters.status == 'active' %}selected{% endif %}>Active</option>
+        <option value="inactive" {% if filters.status == 'inactive' %}selected{% endif %}>Inactive</option>
+      </select>
+    </div>
+    <div class="col-md-2 d-flex align-items-end">
+      <button type="submit" class="btn btn-primary w-100">Filter</button>
+    </div>
+  </form>
+</div>
+
+<!-- Vendors Table -->
+<div class="dashboard-card">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <h6 class="title-medium mb-0">Vendor List</h6>
+    <div class="d-flex gap-2">
+      <a href="{% url 'admin_dashboard:export-vendors-csv' %}" class="btn btn-outline-secondary btn-sm">
+        <i class="fas fa-file-csv me-1"></i> Export CSV
+      </a>
+      <a href="{% url 'admin_dashboard:add-vendor' %}" class="btn btn-primary btn-sm">
+        <i class="fas fa-plus me-1"></i> Add Vendor
+      </a>
+    </div>
+  </div>
+  <div class="card-body p-0">
+    {% if vendors %}
+      <!-- Bulk Action Form -->
+      <form method="post" id="bulkForm">
+        {% csrf_token %}
+        <input type="hidden" name="action" id="bulkActionInput">
+        <div class="table-responsive">
+          <table class="data-table table mb-0">
+            <thead>
+              <tr>
+                <th style="width: 40px;">
+                  <input type="checkbox" id="selectAll" class="form-check-input">
+                </th>
+                <th>Business</th>
+                <th>Owner</th>
+                <th>Phone</th>
+                <th>License</th>
+                <th>Status</th>
+                <th>Verified</th>
+                <th>Products</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for vendor in vendors %}
+              <tr>
+                <td>
+                  <input type="checkbox" name="vendor_ids" value="{{ vendor.user.id }}" class="form-check-input">
+                </td>
+                <td class="title-medium">{{ vendor.business_name }}</td>
+                <td>{{ vendor.names }}</td>
+                <td>{{ vendor.user.phone_number }}</td>
+                <td>{{ vendor.business_license|truncatechars:12 }}</td>
+                <td>
+                  {% if vendor.user.is_active %}
+                    <span class="chip chip-success">Active</span>
+                  {% else %}
+                    <span class="chip chip-error">Suspended</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if vendor.is_verified %}
+                    <span class="chip chip-success">✓ Verified</span>
+                  {% else %}
+                    <span class="chip chip-warning">Pending</span>
+                  {% endif %}
+                </td>
+                <td>{{ vendor.products.count }}</td>
+                <td>
+                  <a href="{% url 'admin_dashboard:vendor-detail' vendor.user.id %}" class="btn btn-outline-primary btn-sm">
+                    <i class="fas fa-eye"></i>
+                  </a>
+                  {% if not vendor.is_verified %}
+                    <a href="#" class="btn btn-success btn-sm"
+                       onclick="crudHelper.confirmDelete('{% url 'admin_dashboard:verify-vendor' vendor.user.id %}', '{{ vendor.business_name }}'); return false;">
+                      Verify
+                    </a>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </form>
+
+      <!-- Bulk Action Buttons -->
+      <div class="p-3 border-top d-flex gap-2">
+        <button type="button" class="btn btn-success btn-sm" onclick="performBulkAction('verify')">
+          <i class="fas fa-check-circle me-1"></i> Verify Selected
+        </button>
+        <button type="button" class="btn btn-warning btn-sm" onclick="performBulkAction('suspend')">
+          <i class="fas fa-pause-circle me-1"></i> Suspend Selected
+        </button>
+        <button type="button" class="btn btn-info btn-sm" onclick="performBulkAction('activate')">
+          <i class="fas fa-play-circle me-1"></i> Activate Selected
+        </button>
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <i class="fas fa-store"></i>
+        <p>No vendors found.</p>
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+<script>
+function performBulkAction(action) {
+  const checkboxes = document.querySelectorAll('input[name="vendor_ids"]:checked');
+  if (checkboxes.length === 0) {
+    alert('Please select at least one vendor.');
+    return;
+  }
+  document.getElementById('bulkActionInput').value = action;
+  document.getElementById('bulkForm').action = "{% url 'admin_dashboard:bulk-vendor-action' %}";
+  document.getElementById('bulkForm').submit();
+}
+
+// Select all checkbox
+document.getElementById('selectAll').addEventListener('change', function() {
+  const checkboxes = document.querySelectorAll('input[name="vendor_ids"]');
+  checkboxes.forEach(cb => cb.checked = this.checked);
+});
+</script>
+{% endblock %}

@@ -1,0 +1,203 @@
+<!-- admin_dashboard/templates/admin_dashboard/users/edit_user.html -->
+{% extends 'admin_dashboard/base.html' %}
+{% load static %}
+
+{% block title %}Edit User - {{ user.phone_number }}{% endblock %}
+{% block page_title %}Edit User{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-lg-8">
+    <div class="dashboard-card">
+      <div class="card-header">
+        <h6 class="title-medium mb-0">Edit User: {{ user.phone_number }}</h6>
+      </div>
+      <div class="card-body">
+        <form method="post" id="editUserForm">
+          {% csrf_token %}
+          <div class="mb-3">
+            <label class="form-label body-medium">Phone Number *</label>
+            <input type="text" name="phone_number" class="form-control" value="{{ user.phone_number }}" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label body-medium">Email</label>
+            <input type="email" name="email" class="form-control" value="{{ user.email|default:'' }}">
+          </div>
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label body-medium">User Type *</label>
+              <select name="user_type" class="form-select" required>
+                <option value="customer" {% if user.user_type == 'customer' %}selected{% endif %}>Customer</option>
+                <option value="vendor" {% if user.user_type == 'vendor' %}selected{% endif %}>Vendor</option>
+                <option value="driver" {% if user.user_type == 'driver' %}selected{% endif %}>Driver</option>
+                <option value="admin" {% if user.user_type == 'admin' %}selected{% endif %}>Admin</option>
+              </select>
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label body-medium">Status</label>
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="is_active" id="is_active" {% if user.is_active %}checked{% endif %}>
+                <label class="form-check-label body-medium" for="is_active">Active Account</label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="is_verified" id="is_verified" {% if user.is_verified %}checked{% endif %}>
+                <label class="form-check-label body-medium" for="is_verified">Verified</label>
+              </div>
+            </div>
+          </div>
+          
+          <!-- User-Specific Fields -->
+          {% if user.customer %}
+            <div class="mb-3">
+              <h6 class="title-small mb-2">Customer Information</h6>
+              <div class="mb-3">
+                <label class="form-label body-medium">Full Name</label>
+                <input type="text" name="customer_names" class="form-control" value="{{ user.customer.names }}">
+              </div>
+              <div class="mb-3">
+                <label class="form-label body-medium">Address</label>
+                <textarea name="customer_address" class="form-control" rows="2">{{ user.customer.address }}</textarea>
+              </div>
+            </div>
+          {% elif user.vendor %}
+            <div class="mb-3">
+              <h6 class="title-small mb-2">Vendor Information</h6>
+              <div class="mb-3">
+                <label class="form-label body-medium">Business Name</label>
+                <input type="text" name="vendor_business_name" class="form-control" value="{{ user.vendor.business_name }}">
+              </div>
+              <div class="mb-3">
+                <label class="form-label body-medium">Owner Name</label>
+                <input type="text" name="vendor_names" class="form-control" value="{{ user.vendor.names }}">
+              </div>
+              <div class="mb-3">
+                <label class="form-label body-medium">Business License</label>
+                <input type="text" name="vendor_business_license" class="form-control" value="{{ user.vendor.business_license }}">
+              </div>
+            </div>
+          {% elif user.driver %}
+            <div class="mb-3">
+              <h6 class="title-small mb-2">Driver Information</h6>
+              <div class="row">
+                <div class="col-md-6 mb-3">
+                  <label class="form-label body-medium">Full Name</label>
+                  <input type="text" name="driver_names" class="form-control" value="{{ user.driver.names }}">
+                </div>
+                <div class="col-md-6 mb-3">
+                  <label class="form-label body-medium">License Number</label>
+                  <input type="text" name="driver_license_number" class="form-control" value="{{ user.driver.license_number }}">
+                </div>
+              </div>
+              <div class="row">
+                <div class="col-md-6 mb-3">
+                  <label class="form-label body-medium">Vehicle Type</label>
+                  <select name="driver_vehicle_type" class="form-select">
+                    <option value="Motorcycle" {% if user.driver.vehicle_type == 'Motorcycle' %}selected{% endif %}>Motorcycle</option>
+                    <option value="Bicycle" {% if user.driver.vehicle_type == 'Bicycle' %}selected{% endif %}>Bicycle</option>
+                    <option value="Tricycle" {% if user.driver.vehicle_type == 'Tricycle' %}selected{% endif %}>Tricycle</option>
+                  </select>
+                </div>
+                <div class="col-md-6 mb-3">
+                  <label class="form-label body-medium">Vehicle Plate</label>
+                  <input type="text" name="driver_vehicle_plate" class="form-control" value="{{ user.driver.vehicle_plate }}">
+                </div>
+              </div>
+            </div>
+          {% elif user.admin_profile %}
+            <div class="mb-3">
+              <h6 class="title-small mb-2">Admin Information</h6>
+              <div class="mb-3">
+                <label class="form-label body-medium">Full Name</label>
+                <input type="text" name="admin_names" class="form-control" value="{{ user.admin_profile.names }}">
+              </div>
+              <div class="row">
+                <div class="col-md-6 mb-3">
+                  <label class="form-label body-medium">Department</label>
+                  <input type="text" name="admin_department" class="form-control" value="{{ user.admin_profile.department }}">
+                </div>
+                <div class="col-md-6 mb-3">
+                  <label class="form-label body-medium">Position</label>
+                  <input type="text" name="admin_position" class="form-control" value="{{ user.admin_profile.position }}">
+                </div>
+              </div>
+            </div>
+          {% endif %}
+          
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary">Update User</button>
+            <a href="{% url 'admin_dashboard:manage-users' %}" class="btn btn-outline-secondary">Cancel</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Security Questions Sidebar -->
+  <div class="col-lg-4">
+    <div class="dashboard-card">
+      <div class="card-header">
+        <h6 class="title-medium mb-0">Security Questions</h6>
+      </div>
+      <div class="card-body">
+        <p class="body-medium mb-3">
+          <i class="fas fa-lock me-1"></i> Security questions help recover account access.
+        </p>
+        <form method="post" id="securityQuestionsForm">
+          {% csrf_token %}
+          {% for question in security_questions %}
+            <div class="mb-3">
+              <label class="form-label body-small">{{ question.question }}</label>
+              <input type="hidden" name="question_id_{{ forloop.counter0 }}" value="{{ question.id }}">
+              <input type="text" name="answer_{{ forloop.counter0 }}" class="form-control" 
+                     value="{% for ans in security_answers %}{% if ans.question.id == question.id %}{{ ans.answer }}{% endif %}{% endfor %}">
+            </div>
+          {% empty %}
+            <p class="body-small text-muted">No security questions configured.</p>
+          {% endfor %}
+          <button type="submit" class="btn btn-outline-primary w-100 mt-2" formaction="{% url 'admin_dashboard:update-security-answers' user.id %}">
+            <i class="fas fa-save me-1"></i> Save Answers
+          </button>
+        </form>
+      </div>
+    </div>
+    
+    <!-- Password Reset -->
+    <div class="dashboard-card mt-4">
+      <div class="card-header">
+        <h6 class="title-medium mb-0">Password Management</h6>
+      </div>
+      <div class="card-body">
+        <p class="body-medium mb-3">
+          <i class="fas fa-key me-1"></i> Reset user password securely.
+        </p>
+        <form method="post" id="passwordResetForm">
+          {% csrf_token %}
+          <div class="mb-3">
+            <label class="form-label body-small">New Password</label>
+            <input type="password" name="new_password" class="form-control" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label body-small">Confirm Password</label>
+            <input type="password" name="confirm_password" class="form-control" required>
+          </div>
+          <button type="submit" class="btn btn-warning w-100" formaction="{% url 'admin_dashboard:reset-user-password' user.id %}">
+            <i class="fas fa-redo me-1"></i> Reset Password
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// Form validation for password reset
+document.getElementById('passwordResetForm').addEventListener('submit', function(e) {
+  const pass1 = document.querySelector('[name="new_password"]').value;
+  const pass2 = document.querySelector('[name="confirm_password"]').value;
+  if (pass1 !== pass2) {
+    e.preventDefault();
+    alert('Passwords do not match!');
+  }
+});
+</script>
+{% endblock %}

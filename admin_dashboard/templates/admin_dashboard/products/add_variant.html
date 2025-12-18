@@ -1,0 +1,114 @@
+<!-- admin_dashboard/templates/admin_dashboard/products/add_variant.html -->
+{% extends 'admin_dashboard/base.html' %}
+{% load static product_extras %}
+
+{% block title %}Add Variant - {{ product.name }}{% endblock %}
+{% block page_title %}Add Product Variant{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-lg-8">
+    <div class="dashboard-card">
+      <div class="card-header">
+        <h6 class="title-medium mb-0">Add Variant for "{{ product.name }}"</h6>
+      </div>
+      <div class="card-body">
+        <form method="post">
+          {% csrf_token %}
+          <div class="mb-3">
+            <label class="form-label body-medium">Vendor *</label>
+            <select name="vendor" class="form-select" required>
+              <option value="">Select Verified Vendor</option>
+              {% for vendor in vendors %}
+                <option value="{{ vendor.user.id }}">{{ vendor.business_name }} ({{ vendor.names }})</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label body-medium">Market Zone *</label>
+            <select name="market_zone" class="form-select" required>
+              <option value="">Select Market Zone</option>
+              {% for zone in market_zones %}
+                <option value="{{ zone.id }}">{{ zone.market.name }} - {{ zone.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <!-- Cost Price by Unit -->
+          <div class="mb-4">
+            <h6 class="title-small mb-3">Cost Price by Unit</h6>
+            {% if product.available_units.all %}
+              <div class="row g-3">
+                {% for unit in product.available_units.all %}
+                  <div class="col-md-6">
+                    <label class="form-label body-medium">{{ unit.name }} ({{ unit.symbol }})</label>
+                    <div class="input-group">
+                      <span class="input-group-text">Tsh</span>
+                      <input 
+                        type="number" 
+                        step="0.01" 
+                        name="cost_price_{{ unit.id }}" 
+                        class="form-control"
+                        required
+                        placeholder="e.g., 1500.00">
+                    </div>
+                    <div class="form-text body-small">
+                      Selling price will be auto-calculated using profit %.
+                    </div>
+                  </div>
+                {% endfor %}
+              </div>
+            {% else %}
+              <p class="text-muted body-medium">No units available for this product.</p>
+            {% endif %}
+          </div>
+
+          <!-- Addons -->
+          {% if addons %}
+            <div class="mb-3">
+              <label class="form-label body-medium">Available Add-ons</label>
+              <div class="d-flex flex-wrap gap-2">
+                {% for addon in addons %}
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="addons" value="{{ addon.id }}" id="addon_{{ addon.id }}">
+                    <label class="form-check-label body-small" for="addon_{{ addon.id }}">
+                      {{ addon.name }} (Tsh {{ addon.price|floatformat:0 }})
+                    </label>
+                  </div>
+                {% endfor %}
+              </div>
+            </div>
+          {% endif %}
+
+          <div class="form-check mb-3">
+            <input class="form-check-input" type="checkbox" name="is_active" id="is_active" checked>
+            <label class="form-check-label body-medium" for="is_active">Active</label>
+          </div>
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary">Create Variant</button>
+            <a href="{% url 'admin_dashboard:manage-product-variants' product.id %}" class="btn btn-outline-secondary">Cancel</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-4">
+    <div class="dashboard-card">
+      <div class="card-header">
+        <h6 class="title-medium mb-0">Info</h6>
+      </div>
+      <div class="card-body">
+        <p class="body-medium">
+          <i class="fas fa-info-circle me-2"></i> A variant links a product to a vendor in a market zone.
+        </p>
+        <p class="body-medium">
+          <i class="fas fa-ruler-combined me-2"></i> Enter the vendor's <strong>cost price per unit</strong>. Selling price is auto-calculated.
+        </p>
+        <p class="body-medium">
+          <i class="fas fa-plus-circle me-2"></i> Add-ons like peeling or packaging can be added per variant.
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

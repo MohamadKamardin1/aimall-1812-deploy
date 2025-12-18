@@ -1,0 +1,190 @@
+<!-- admin_dashboard/templates/admin_dashboard/dashboard.html -->
+{% extends 'admin_dashboard/base.html' %}
+{% load static %}
+
+{% block title %}Dashboard - AI Mall Admin{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Revenue Chart - placeholder data (replace with real API later)
+  const ctx = document.getElementById('revenueChart').getContext('2d');
+  new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: ['Today', 'Yesterday', '3 Days Ago', '4 Days Ago', '5 Days Ago', '6 Days Ago', '7 Days Ago'],
+      datasets: [{
+        label: 'Revenue (TZS)',
+        data: [
+          {{ stats.revenue_today|default:0 }},
+          {{ stats.revenue_today|default:0|add:"-200000" }},
+          {{ stats.revenue_today|default:0|add:"-400000" }},
+          {{ stats.revenue_today|default:0|add:"-100000" }},
+          {{ stats.revenue_today|default:0|add:"-300000" }},
+          {{ stats.revenue_today|default:0|add:"-150000" }},
+          {{ stats.revenue_today|default:0|add:"-500000" }}
+        ],
+        borderColor: 'rgb(46, 125, 50)',
+        backgroundColor: 'rgba(46, 125, 50, 0.1)',
+        tension: 0.3,
+        fill: true,
+        pointRadius: 4,
+        pointBackgroundColor: 'rgb(46, 125, 50)'
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: {
+            callback: function(value) {
+              if (value >= 1000000) {
+                return 'Tsh ' + (value / 1000000).toFixed(1) + 'M';
+              } else if (value >= 1000) {
+                return 'Tsh ' + (value / 1000).toFixed(0) + 'k';
+              }
+              return 'Tsh ' + value;
+            }
+          },
+          grid: {
+            color: 'rgba(0,0,0,0.05)'
+          }
+        },
+        x: {
+          grid: {
+            display: false
+          }
+        }
+      }
+    }
+  });
+});
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="row g-4 mb-4">
+  <!-- Revenue Today -->
+  <div class="col-md-3">
+    <div class="dashboard-card stat-card">
+      <div class="stat-icon text-success">
+        <i class="fas fa-coins"></i>
+      </div>
+      <div class="stat-value">Tsh {{ stats.revenue_today|floatformat:0 }}</div>
+      <div class="stat-label">Revenue Today</div>
+    </div>
+  </div>
+
+  <!-- Total Orders -->
+  <div class="col-md-3">
+    <div class="dashboard-card stat-card">
+      <div class="stat-icon text-primary">
+        <i class="fas fa-shopping-cart"></i>
+      </div>
+      <div class="stat-value">{{ stats.total_order }}</div>
+      <div class="stat-label">Total Orders</div>
+    </div>
+  </div>
+
+  <!-- Pending Vendors -->
+  <div class="col-md-3">
+    <div class="dashboard-card stat-card">
+      <div class="stat-icon text-warning">
+        <i class="fas fa-user-check"></i>
+      </div>
+      <div class="stat-value">{{ stats.pending_vendors }}</div>
+      <div class="stat-label">Pending Vendors</div>
+    </div>
+  </div>
+
+  <!-- Total Customers -->
+  <div class="col-md-3">
+    <div class="dashboard-card stat-card">
+      <div class="stat-icon text-info">
+        <i class="fas fa-users"></i>
+      </div>
+      <div class="stat-value">{{ stats.total_customers }}</div>
+      <div class="stat-label">Customers</div>
+    </div>
+  </div>
+</div>
+
+<!-- Revenue Chart -->
+<div class="row mb-4">
+  <div class="col-12">
+    <div class="chart-container" style="height: 300px;">
+      <canvas id="revenueChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- Recent Orders Table -->
+<div class="dashboard-card">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <h6 class="title-medium mb-0">Recent Orders</h6>
+    <a href="{% url 'admin_dashboard:manage-orders' %}" class="btn btn-outline-primary btn-sm">View All</a>
+  </div>
+  <div class="card-body p-0">
+    {% if recent_order %}
+      <div class="table-responsive">
+        <table class="data-table table mb-0">
+          <thead>
+            <tr>
+              <th>Order #</th>
+              <th>Customer</th>
+              <th>Amount</th>
+              <th>Status</th>
+              <th>Date</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for order in recent_order %}
+            <tr>
+              <td>{{ order.order_number }}</td>
+              <td>
+                {% if order.customer.customer %}
+                  {{ order.customer.customer.names|default:order.customer.phone_number }}
+                {% else %}
+                  {{ order.customer.phone_number }}
+                {% endif %}
+              </td>
+              <td>Tsh {{ order.total_amount|floatformat:0 }}</td>
+              <td>
+                {% if order.status == 'pending' %}
+                  <span class="chip chip-warning">Pending</span>
+                {% elif order.status == 'confirmed' %}
+                  <span class="chip chip-info">Confirmed</span>
+                {% elif order.status == 'processing' %}
+                  <span class="chip chip-primary">Processing</span>
+                {% elif order.status == 'shipped' %}
+                  <span class="chip chip-info">Shipped</span>
+                {% elif order.status == 'delivered' or order.status == 'completed' %}
+                  <span class="chip chip-success">Delivered</span>
+                {% elif order.status == 'cancelled' %}
+                  <span class="chip chip-error">Cancelled</span>
+                {% else %}
+                  <span class="chip chip-secondary">{{ order.get_status_display }}</span>
+                {% endif %}
+              </td>
+              <td>{{ order.created_at|date:"M d, Y H:i" }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <i class="fas fa-box-open"></i>
+        <p>No recent orders</p>
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

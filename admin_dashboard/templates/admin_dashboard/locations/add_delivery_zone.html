@@ -1,0 +1,90 @@
+<!-- admin_dashboard/templates/admin_dashboard/locations/add_delivery_zone.html -->
+{% extends 'admin_dashboard/base.html' %}
+{% load static %}
+
+{% block title %}Add Delivery Zone - {{ market.name }}{% endblock %}
+{% block page_title %}Add Delivery Zone{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-lg-7">
+    <div class="dashboard-card">
+      <div class="card-header">
+        <h6 class="title-medium mb-0">New Delivery Zone for {{ market.name }}</h6>
+      </div>
+      <div class="card-body">
+        <form method="post" id="deliveryZoneForm">
+          {% csrf_token %}
+          <div class="mb-3">
+            <label class="form-label body-medium">Zone Name *</label>
+            <input type="text" name="name" class="form-control" required placeholder="e.g., Stone Town, Amani">
+          </div>
+          <div class="mb-3">
+            <label class="form-label body-medium">Description</label>
+            <textarea name="description" class="form-control" rows="2" placeholder="Brief description..."></textarea>
+          </div>
+          <div class="mb-3">
+            <label class="form-label body-medium">Base Delivery Fee (TZS) *</label>
+            <input type="number" step="100" name="base_delivery_fee" class="form-control" required placeholder="e.g., 2000">
+          </div>
+          <div class="form-check mb-3">
+            <input class="form-check-input" type="checkbox" id="manualPricing" name="is_manual_pricing">
+            <label class="form-check-label body-medium" for="manualPricing">Use Manual Pricing (override distance calculation)</label>
+          </div>
+          <div class="mb-3" id="manualFeeField" style="display:none;">
+            <label class="form-label body-medium">Manual Delivery Fee (TZS)</label>
+            <input type="number" step="100" name="manual_delivery_fee" class="form-control" placeholder="e.g., 3000">
+          </div>
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary">Create Zone</button>
+            <a href="{% url 'admin_dashboard:manage-delivery-zones' market.id %}" class="btn btn-outline-secondary">Cancel</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-5">
+    <div class="dashboard-card">
+      <div class="card-header">
+        <h6 class="title-medium mb-0">Geographic Boundaries (Optional)</h6>
+      </div>
+      <div class="card-body">
+        <p class="body-medium text-muted mb-3">Define a bounding box for automatic distance-based pricing.</p>
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label body-small">Min Latitude</label>
+            <input type="number" step="0.000001" name="min_latitude" class="form-control" placeholder="-6.170">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label body-small">Max Latitude</label>
+            <input type="number" step="0.000001" name="max_latitude" class="form-control" placeholder="-6.160">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label body-small">Min Longitude</label>
+            <input type="number" step="0.000001" name="min_longitude" class="form-control" placeholder="39.190">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label body-small">Max Longitude</label>
+            <input type="number" step="0.000001" name="max_longitude" class="form-control" placeholder="39.200">
+          </div>
+        </div>
+        <div class="mt-4 p-3 bg-primary-light rounded">
+          <h6 class="title-small mb-2">How It Works</h6>
+          <ul class="body-medium mb-0">
+            <li>If customer is inside this box → use base fee</li>
+            <li>If outside → calculate distance + base fee</li>
+            <li>OR use manual fee if enabled</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.getElementById('manualPricing').addEventListener('change', function() {
+  const field = document.getElementById('manualFeeField');
+  field.style.display = this.checked ? 'block' : 'none';
+});
+</script>
+{% endblock %}

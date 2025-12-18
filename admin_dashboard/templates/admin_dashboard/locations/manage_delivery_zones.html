@@ -1,0 +1,290 @@
+<!-- admin_dashboard/templates/admin_dashboard/locations/manage_delivery_zones.html -->
+{% extends 'admin_dashboard/base.html' %}
+{% load static %}
+
+{% block title %}Delivery Zones - {{ market.name }} - AI Mall Admin{% endblock %}
+{% block page_title %}Delivery Zones: {{ market.name }}{% endblock %}
+
+{% block content %}
+<!-- Stats Cards - Matching Products Template -->
+<div class="row mb-4">
+  <div class="col-md-3">
+    <div class="dashboard-card p-3">
+      <div class="title-medium">Total: {{ total_zones }}</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="dashboard-card p-3">
+      <div class="title-medium text-success">Active: {{ active_zones }}</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="dashboard-card p-3">
+      <div class="title-medium text-warning">Standard: {{ zone_type_counts.standard|default:0 }}</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="dashboard-card p-3">
+      <div class="title-medium">Fixed: {{ zone_type_counts.fixed|default:0 }}</div>
+    </div>
+  </div>
+</div>
+
+<!-- Filter Bar - Matching Products Template -->
+<div class="search-filter-bar mb-4">
+  <div class="row g-3">
+    <div class="col-md-4">
+      <div class="input-group">
+        <span class="input-group-text"><i class="fas fa-search"></i></span>
+        <input type="text" id="zoneSearch" class="form-control" placeholder="Search zones by name...">
+      </div>
+    </div>
+    <div class="col-md-3">
+      <select id="statusFilter" class="form-select">
+        <option value="all">All Status</option>
+        <option value="active">Active Only</option>
+        <option value="inactive">Inactive Only</option>
+      </select>
+    </div>
+    <div class="col-md-3">
+      <select id="typeFilter" class="form-select">
+        <option value="all">All Types</option>
+        <option value="standard">Standard</option>
+        <option value="fixed">Fixed</option>
+        <option value="surcharge">Surcharge</option>
+      </select>
+    </div>
+    <div class="col-md-2 d-flex align-items-end">
+      <button type="button" class="btn btn-primary w-100" onclick="filterZones()">
+        <i class="fas fa-filter me-1"></i> Filter
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Delivery Zones Table - Matching Products Template Structure -->
+<div class="dashboard-card">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <h6 class="title-medium mb-0">Delivery Zones</h6>
+    <div class="d-flex gap-2">
+      <a href="{% url 'admin_dashboard:export-delivery-zones-csv' market.id %}" class="btn btn-outline-secondary btn-sm">
+        <i class="fas fa-file-csv me-1"></i> Export CSV
+      </a>
+      <a href="{% url 'admin_dashboard:add-delivery-zone' market.id %}" class="btn btn-primary btn-sm">
+        <i class="fas fa-plus me-1"></i> Add Zone
+      </a>
+    </div>
+  </div>
+  <div class="card-body p-0">
+    {% if zones %}
+      <!-- Bulk Action Form -->
+      <form method="post" id="bulkForm" action="{% url 'admin_dashboard:bulk-delivery-zone-action' market.id %}">
+        {% csrf_token %}
+        <input type="hidden" name="action" id="bulkActionInput">
+        <div class="table-responsive">
+          <table class="data-table table mb-0">
+            <thead>
+              <tr>
+                <th style="width: 40px;">
+                  <input type="checkbox" id="selectAll" class="form-check-input">
+                </th>
+                <th>Zone</th>
+                <th>Type</th>
+                <th>Pricing</th>
+                <th>Priority</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for zone in zones %}
+              <tr class="zone-row" data-status="{% if zone.is_active %}active{% else %}inactive{% endif %}" data-type="{{ zone.zone_type }}">
+                <td>
+                  <input type="checkbox" name="zone_ids" value="{{ zone.id }}" class="form-check-input zone-checkbox">
+                </td>
+                <td>
+                  <div class="d-flex align-items-start">
+                    <div class="me-2 text-primary">
+                      <i class="fas fa-map-marker-alt"></i>
+                    </div>
+                    <div>
+                      <div class="title-medium zone-name">{{ zone.name }}</div>
+                      <small class="text-muted">{{ zone.description|truncatechars:60|default:"No description" }}</small>
+                    </div>
+                  </div>
+                </td>
+                <td>
+                  {% if zone.zone_type == 'fixed' %}
+                    <span class="chip chip-warning">Fixed</span>
+                  {% elif zone.zone_type == 'surcharge' %}
+                    <span class="chip chip-info">Surcharge</span>
+                  {% else %}
+                    <span class="chip chip-primary">Standard</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if zone.zone_type == 'fixed' %}
+                    <span class="title-small">Tsh {{ zone.fixed_price|floatformat:0|default:"0" }}</span>
+                  {% elif zone.zone_type == 'surcharge' %}
+                    <span class="title-small">{{ zone.surcharge_percent|floatformat:1 }}%</span>
+                  {% else %}
+                    <span class="title-small">Tsh {{ zone.base_fee|floatformat:0|default:"0" }}</span>
+                  {% endif %}
+                </td>
+                <td>
+                  <span class="chip chip-primary">{{ zone.priority }}</span>
+                </td>
+                <td>
+                  {% if zone.is_active %}
+                    <span class="chip chip-success">Active</span>
+                  {% else %}
+                    <span class="chip chip-error">Inactive</span>
+                  {% endif %}
+                </td>
+                <td>
+                  <div class="d-flex gap-1">
+                    <a href="{% url 'admin_dashboard:delivery-zone-detail' zone.id %}" class="btn btn-outline-primary btn-sm">
+                      <i class="fas fa-eye"></i>
+                    </a>
+                    {% if not zone.is_active %}
+                      <a href="#" class="btn btn-success btn-sm"
+                         onclick="confirmToggleStatus('{{ zone.id }}', '{{ zone.name }}', 'activate'); return false;">
+                        Activate
+                      </a>
+                    {% endif %}
+                  </div>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </form>
+
+      <!-- Bulk Action Buttons - Matching Products Template -->
+      <div class="p-3 border-top d-flex gap-2">
+        <button type="button" class="btn btn-success btn-sm" onclick="performBulkAction('activate')">
+          <i class="fas fa-check-circle me-1"></i> Activate
+        </button>
+        <button type="button" class="btn btn-warning btn-sm" onclick="performBulkAction('deactivate')">
+          <i class="fas fa-times-circle me-1"></i> Deactivate
+        </button>
+        <button type="button" class="btn btn-info btn-sm" onclick="performBulkAction('make_standard')">
+          <i class="fas fa-route me-1"></i> Make Standard
+        </button>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="performBulkAction('make_fixed')">
+          <i class="fas fa-dollar-sign me-1"></i> Make Fixed
+        </button>
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <i class="fas fa-truck"></i>
+        <p>No delivery zones found.</p>
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+<script>
+// Bulk action functionality matching products template
+function performBulkAction(action) {
+  const checkboxes = document.querySelectorAll('input[name="zone_ids"]:checked');
+  if (checkboxes.length === 0) {
+    alert('Please select at least one zone.');
+    return;
+  }
+  
+  const actionMap = {
+    'activate': 'activate',
+    'deactivate': 'deactivate',
+    'make_standard': 'make standard',
+    'make_fixed': 'make fixed rate'
+  };
+  
+  if (confirm(`Are you sure you want to ${actionMap[action]} ${checkboxes.length} zone(s)?`)) {
+    document.getElementById('bulkActionInput').value = action;
+    document.getElementById('bulkForm').submit();
+  }
+}
+
+// Select all checkbox matching products template
+document.getElementById('selectAll').addEventListener('change', function() {
+  const checkboxes = document.querySelectorAll('.zone-checkbox');
+  checkboxes.forEach(cb => cb.checked = this.checked);
+});
+
+// Filter functionality matching products template
+function filterZones() {
+  const searchTerm = document.getElementById('zoneSearch').value.toLowerCase();
+  const statusFilter = document.getElementById('statusFilter').value;
+  const typeFilter = document.getElementById('typeFilter').value;
+  
+  document.querySelectorAll('.zone-row').forEach(row => {
+    const zoneName = row.querySelector('.zone-name').textContent.toLowerCase();
+    const zoneStatus = row.getAttribute('data-status');
+    const zoneType = row.getAttribute('data-type');
+    
+    const searchMatch = zoneName.includes(searchTerm);
+    const statusMatch = statusFilter === 'all' || zoneStatus === statusFilter;
+    const typeMatch = typeFilter === 'all' || zoneType === typeFilter;
+    
+    row.style.display = (searchMatch && statusMatch && typeMatch) ? '' : 'none';
+  });
+}
+
+// Initialize filters on page load
+document.addEventListener('DOMContentLoaded', function() {
+  // Trigger filter on search input
+  document.getElementById('zoneSearch').addEventListener('input', filterZones);
+  document.getElementById('statusFilter').addEventListener('change', filterZones);
+  document.getElementById('typeFilter').addEventListener('change', filterZones);
+  
+  // Set initial filter state
+  filterZones();
+});
+
+// Toggle status confirmation
+function confirmToggleStatus(zoneId, zoneName, action) {
+  if (confirm(`Are you sure you want to ${action} "${zoneName}"?`)) {
+    // You can implement AJAX call here or redirect
+    window.location.href = `/admin/delivery-zones/${zoneId}/${action}/`;
+  }
+}
+</script>
+
+<style>
+.chip {
+  display: inline-block;
+  padding: 0.25rem 0.6rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 12px;
+  line-height: 1;
+}
+.chip-primary { background-color: #e3f2fd; color: #1565c0; }
+.chip-success { background-color: #e8f5e9; color: #2e7d32; }
+.chip-error { background-color: #ffebee; color: #c62828; }
+.chip-warning { background-color: #fff3e0; color: #ef6c00; }
+.chip-info { background-color: #e0f7fa; color: #006064; }
+
+/* Search filter bar styling matching products template */
+.search-filter-bar {
+  background: #f8f9fa;
+  padding: 1rem;
+  border-radius: 8px;
+  border: 1px solid #dee2e6;
+}
+
+/* Empty state styling matching products template */
+.empty-state {
+  text-align: center;
+  padding: 3rem;
+  color: #6c757d;
+}
+.empty-state i {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  opacity: 0.5;
+}
+</style>
+{% endblock %}

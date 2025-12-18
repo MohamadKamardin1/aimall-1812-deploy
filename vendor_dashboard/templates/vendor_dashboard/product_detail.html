@@ -1,0 +1,129 @@
+{% extends 'vendor_dashboard/base.html' %}
+{% block page_title %}{{ variant.product_template.name }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8">
+        <div class="dashboard-card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h4 class="title-large mb-0">{{ variant.product_template.name }}</h4>
+                <div>
+                    <a href="{% url 'vendor_dashboard:product_edit' variant.pk %}" class="btn btn-outline-primary me-2">
+                        <i class="fas fa-edit me-1"></i> Edit
+                    </a>
+                    <button type="button" class="btn btn-outline-danger"
+                        onclick="window.crudHelper.confirmDelete('{% url 'vendor_dashboard:delete_product' variant.pk %}', '{{ variant.product_template.name }}')">
+                        <i class="fas fa-trash me-1"></i> Delete
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <strong>Business:</strong> {{ variant.vendor.business_name }}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <strong>Market Zone:</strong> {{ variant.market_zone.name }}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <strong>Category:</strong> {{ variant.product_template.category.name }}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <strong>Profit %:</strong> 
+                        {% if variant.custom_profit_percentage %}
+                            {{ variant.custom_profit_percentage }}% (custom)
+                        {% else %}
+                            {{ variant.product_template.category.profit_percentage }}% (category default)
+                        {% endif %}
+                    </div>
+                    <div class "col-md-6 mb-3">
+                        <strong>Quality:</strong> {{ variant.get_quality_grade_display|default:"Not set" }}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <strong>Status:</strong>
+                        {% if variant.is_approved %}
+                            <span class="chip chip-success">Approved</span>
+                        {% else %}
+                            <span class="chip chip-warning">Pending Approval</span>
+                        {% endif %}
+                        {% if not variant.is_active %}
+                            <span class="chip chip-error">Inactive</span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Replace the entire pricing table -->
+<h5 class="title-medium mt-4 mb-3">Pricing</h5>
+<div class="table-responsive">
+    <table class="table table-borderless">
+        <thead>
+            <tr>
+                <th>Unit</th>
+                <th>Cost (Tsh)</th>
+                <th>Selling (Tsh)</th>
+                <th>Margin</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in annotated_prices %}
+            <tr>
+                <td>{{ item.price.unit.name }} ({{ item.price.unit.symbol }})</td>
+                <td>{{ item.price.cost_price }}</td>
+                <td>{{ item.price.selling_price }}</td>
+                <td>
+                    {% if item.margin > 0 %}
+                        <span class="text-success">+{{ item.margin|floatformat:2 }}</span>
+                    {% else %}
+                        <span class="text-danger">{{ item.margin|floatformat:2 }}</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+    <div class="col-lg-4">
+        <!-- Product Images -->
+        <div class="dashboard-card mb-4">
+            <div class="card-header">
+                <h5 class="title-medium mb-0">Product Images</h5>
+            </div>
+            <div class="card-body">
+                {% if variant.product_template.main_image %}
+                    <img src="{{ variant.product_template.main_image.url }}" class="img-fluid rounded mb-2" alt="Main">
+                {% endif %}
+                {% for img in variant.product_template.additional_images.all %}
+                    <img src="{{ img.image.url }}" class="img-fluid rounded mb-2" alt="Additional" style="max-height: 150px; object-fit: cover;">
+                {% empty %}
+                    <p class="body-medium text-muted">No additional images.</p>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Addons -->
+        <div class="dashboard-card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="title-medium mb-0">Addons</h5>
+                <a href="{% url 'vendor_dashboard:product_addons' variant.pk %}" class="btn btn-sm btn-primary">
+                    <i class="fas fa-plus me-1"></i> Manage
+                </a>
+            </div>
+            <div class="card-body">
+                {% if variant.available_addons.exists %}
+                    <ul class="list-unstyled">
+                        {% for mapping in variant.available_addons.all %}
+                        <li class="mb-2">
+                            <strong>{{ mapping.addon.name }}</strong> — Tsh {{ mapping.addon.price }}
+                            <br><small class="text-muted">{{ mapping.addon.get_addon_type_display }}</small>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="body-medium text-muted">No addons configured.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

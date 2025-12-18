@@ -1,0 +1,112 @@
+/* Custom styles for Products Admin */
+.field-products_count, .field-variants_count, .field-usage_count {
+    font-weight: bold;
+    color: #417690;
+}
+
+/* Price difference styling */
+.price-positive {
+    color: #dc3545;
+    font-weight: bold;
+}
+
+.price-negative {
+    color: #28a745;
+    font-weight: bold;
+}
+
+.price-neutral {
+    color: #6c757d;
+}
+
+/* Stock status indicators */
+.stock-out {
+    color: #dc3545;
+    font-weight: bold;
+}
+
+.stock-low {
+    color: #ffc107;
+    font-weight: bold;
+}
+
+.stock-ok {
+    color: #28a745;
+    font-weight: bold;
+}
+
+/* Image preview styling */
+.image-preview {
+    border: 2px solid #dee2e6;
+    border-radius: 4px;
+    padding: 5px;
+    background: white;
+}
+
+/* Calculation panels */
+.calculation-panel {
+    background: #f8f9fa;
+    border-left: 4px solid #417690;
+    padding: 15px;
+    margin: 10px 0;
+    border-radius: 4px;
+}
+
+/* Action buttons */
+.admin-action-button {
+    transition: all 0.3s ease;
+    border: none;
+    border-radius: 4px;
+    padding: 8px 16px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.admin-action-button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+/* Responsive tables */
+@media (max-width: 768px) {
+    .product-admin-table {
+        font-size: 12px;
+    }
+    
+    .product-admin-table img {
+        max-width: 30px;
+        max-height: 30px;
+    }
+}
+
+/* Hierarchy tree styling */
+.category-tree {
+    font-family: 'Courier New', monospace;
+    background: #f8f9fa;
+    padding: 10px;
+    border-radius: 4px;
+    border: 1px solid #dee2e6;
+}
+
+/* Status badges */
+.status-badge {
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.status-verified {
+    background: #d4edda;
+    color: #155724;
+}
+
+.status-pending {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.status-inactive {
+    background: #f8d7da;
+    color: #721c24;
+}

@@ -1,0 +1,546 @@
+<!-- admin_dashboard/templates/admin_dashboard/orders/pending_preparation.html -->
+{% extends 'admin_dashboard/base.html' %}
+{% load humanize %}
+
+{% block title %}Pending Preparation - AI Mall Admin{% endblock %}
+
+{% block page_title %}Orders Pending Preparation{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header Stats -->
+    <div class="row mb-4 animate__animated animate__fadeIn">
+        <div class="col-xl-4 col-md-6 mb-4">
+            <div class="dashboard-card stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-utensils text-warning"></i>
+                </div>
+                <div class="stat-value">{{ orders.count }}</div>
+                <div class="stat-label">Orders to Prepare</div>
+            </div>
+        </div>
+        <div class="col-xl-4 col-md-6 mb-4">
+            <div class="dashboard-card stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-store text-primary"></i>
+                </div>
+                <div class="stat-value">{{ vendor_items|length }}</div>
+                <div class="stat-label">Active Vendors</div>
+            </div>
+        </div>
+        <div class="col-xl-4 col-md-6 mb-4">
+            <div class="dashboard-card stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-clock text-info"></i>
+                </div>
+                <div class="stat-value">25 min</div>
+                <div class="stat-label">Avg Prep Time</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Vendor View Toggle -->
+    <div class="dashboard-card mb-4">
+        <div class="card-body py-3">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="title-medium mb-1">Preparation Dashboard</h6>
+                    <p class="body-small text-muted mb-0">View orders by vendor for efficient kitchen management</p>
+                </div>
+                <div class="btn-group" role="group">
+                    <input type="radio" class="btn-check" name="viewMode" id="vendorView" autocomplete="off" checked>
+                    <label class="btn btn-outline-primary" for="vendorView">
+                        <i class="fas fa-store me-1"></i> Vendor View
+                    </label>
+                    <input type="radio" class="btn-check" name="viewMode" id="orderView" autocomplete="off">
+                    <label class="btn btn-outline-primary" for="orderView">
+                        <i class="fas fa-list me-1"></i> Order View
+                    </label>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Vendor View (Default) -->
+    <div id="vendorViewContent">
+        {% for vendor, items in vendor_items.items %}
+        <div class="dashboard-card mb-4 animate__animated animate__fadeInUp">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-store me-2"></i>{{ vendor.business_name }}
+                    </h6>
+                    <p class="mb-0 body-small text-muted">
+                        {{ vendor.names }} • {{ vendor.user.phone_number }}
+                        {% if vendor.user.email %}<br>{{ vendor.user.email }}{% endif %}
+                    </p>
+                </div>
+                <div class="d-flex align-items-center gap-3">
+                    <span class="chip chip-primary">{{ items|length }} order{{ items|pluralize }}</span>
+                    <button class="btn btn-sm btn-outline-primary" onclick="notifyVendor('{{ vendor.user.id }}')">
+                        <i class="fas fa-bell me-1"></i> Notify
+                    </button>
+                    <button class="btn btn-sm btn-primary" onclick="markVendorReady('{{ vendor.user.id }}')">
+                        <i class="fas fa-check me-1"></i> Mark All Ready
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    {% for item_data in items %}
+                    <div class="col-md-6 mb-3">
+                        <div class="preparation-item">
+                            <div class="preparation-item-header">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <a href="{% url 'admin_dashboard:order-detail' item_data.order.id %}" 
+                                           class="text-decoration-none">
+                                            <h6 class="title-medium mb-1">{{ item_data.order.order_number }}</h6>
+                                        </a>
+                                        <p class="body-small text-muted mb-0">
+                                            Customer: {{ item_data.order.customer.customer.names|default:item_data.order.customer.phone_number }}
+                                        </p>
+                                        <p class="body-small text-muted mb-0">
+                                            Delivery: {{ item_data.order.scheduled_delivery_time }}
+                                        </p>
+                                    </div>
+                                    <div class="text-end">
+                                        <span class="chip chip-primary">Est: {{ item_data.preparation_time }} min</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="preparation-item-body mt-2">
+                                <div class="d-flex align-items-start">
+                                    {% if item_data.item.product_variant.product_template.main_image %}
+                                    <img src="{{ item_data.item.product_variant.product_template.main_image.url }}" 
+                                         alt="{{ item_data.item.product_variant.product_template.name }}"
+                                         class="rounded me-3" style="width: 60px; height: 60px; object-fit: cover;">
+                                    {% else %}
+                                    <div class="bg-light rounded d-flex align-items-center justify-content-center me-3" 
+                                         style="width: 60px; height: 60px;">
+                                        <i class="fas fa-box text-muted fa-lg"></i>
+                                    </div>
+                                    {% endif %}
+                                    <div class="flex-grow-1">
+                                        <h6 class="title-small mb-1">{{ item_data.item.product_variant.product_template.name }}</h6>
+                                        <p class="body-small text-muted mb-1">
+                                            {{ item_data.item.quantity }} {{ item_data.item.measurement_unit.symbol }}
+                                            @ TZS {{ item_data.item.unit_price|floatformat:2|intcomma }}
+                                        </p>
+                                        {% if item_data.item.special_instructions %}
+                                        <p class="body-small text-warning mb-1">
+                                            <i class="fas fa-info-circle me-1"></i>{{ item_data.item.special_instructions }}
+                                        </p>
+                                        {% endif %}
+                                        {% if item_data.item.selected_addons.exists %}
+                                        <div class="mt-1">
+                                            <p class="body-small text-muted mb-1">Add-ons:</p>
+                                            {% for addon in item_data.item.selected_addons.all %}
+                                            <span class="chip chip-primary chip-sm">{{ addon.name }}</span>
+                                            {% endfor %}
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="preparation-item-footer mt-3">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <span class="body-small text-muted">
+                                            Ordered: {{ item_data.order.created_at|timesince }} ago
+                                        </span>
+                                    </div>
+                                    <div class="d-flex gap-2">
+                                        <button class="btn btn-sm btn-outline-primary" 
+                                                onclick="markItemReady('{{ item_data.item.id }}')">
+                                            <i class="fas fa-check me-1"></i> Mark Ready
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-secondary" 
+                                                onclick="viewOrder('{{ item_data.order.id }}')">
+                                            <i class="fas fa-eye me-1"></i> View
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="dashboard-card text-center py-5">
+            <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+            <h5 class="title-medium">All Caught Up!</h5>
+            <p class="body-medium text-muted">No orders pending preparation.</p>
+            <a href="{% url 'admin_dashboard:todays-orders' %}" class="btn btn-primary mt-3">
+                <i class="fas fa-calendar-day me-2"></i> View Today's Orders
+            </a>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Order View (Hidden by default) -->
+    <div id="orderViewContent" style="display: none;">
+        <div class="dashboard-card">
+            <div class="card-header">
+                <h6 class="m-0 font-weight-bold text-primary">Orders by Time</h6>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Order #</th>
+                                <th>Customer</th>
+                                <th>Vendor</th>
+                                <th>Items</th>
+                                <th>Est. Prep</th>
+                                <th>Status</th>
+                                <th>Created</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for order in orders %}
+                            <tr>
+                                <td>
+                                    <a href="{% url 'admin_dashboard:order-detail' order.id %}" class="text-decoration-none">
+                                        <strong class="title-medium text-primary">{{ order.order_number }}</strong>
+                                    </a>
+                                </td>
+                                <td>
+                                    <div class="title-small">{{ order.customer.customer.names|default:order.customer.phone_number }}</div>
+                                    <div class="body-small text-muted">{{ order.customer.phone_number }}</div>
+                                </td>
+                                <td>
+                                    {% with vendor=order.items.first.product_variant.vendor %}
+                                    <div class="title-small">{{ vendor.business_name }}</div>
+                                    <div class="body-small text-muted">{{ vendor.user.phone_number }}</div>
+                                    {% endwith %}
+                                </td>
+                                <td>
+                                    <span class="badge bg-primary rounded-pill">{{ order.items.count }}</span>
+                                    <div class="body-small text-muted">
+                                        {% for item in order.items.all|slice:":2" %}
+                                        {{ item.product_variant.product_template.name|truncatechars:20 }}<br>
+                                        {% endfor %}
+                                        {% if order.items.count > 2 %}
+                                        +{{ order.items.count|add:"-2" }} more
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="chip chip-primary">25 min</span>
+                                </td>
+                                <td>
+                                    <span class="chip {% if order.status == 'confirmed' %}chip-primary{% else %}chip-warning{% endif %}">
+                                        {{ order.get_status_display }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="title-small">{{ order.created_at|date:"H:i" }}</div>
+                                    <div class="body-small text-muted">{{ order.created_at|timesince }} ago</div>
+                                </td>
+                                <td>
+                                    <div class="dropdown">
+                                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                            <i class="fas fa-ellipsis-v"></i>
+                                        </button>
+                                        <ul class="dropdown-menu dropdown-menu-end">
+                                            <li>
+                                                <a class="dropdown-item" href="{% url 'admin_dashboard:order-detail' order.id %}">
+                                                    <i class="fas fa-eye me-2"></i>View Details
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="dropdown-item text-success" href="#" onclick="markOrderReady('{{ order.id }}')">
+                                                    <i class="fas fa-check me-2"></i>Mark as Ready
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="dropdown-item" href="#" onclick="notifyVendor('{{ order.items.first.product_variant.vendor.user.id }}')">
+                                                    <i class="fas fa-bell me-2"></i>Notify Vendor
+                                                </a>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="8" class="text-center py-5">
+                                    <div class="empty-state">
+                                        <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                                        <h5 class="title-medium">All Orders Prepared!</h5>
+                                        <p class="body-medium text-muted">No pending preparation orders.</p>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Preparation Summary -->
+    <div class="dashboard-card mt-4">
+        <div class="card-header">
+            <h6 class="m-0 font-weight-bold text-primary">Preparation Summary</h6>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <h6 class="title-small mb-3">Preparation Guidelines</h6>
+                    <ul class="list-unstyled">
+                        <li class="mb-2"><i class="fas fa-check-circle text-success me-2"></i>Confirm special instructions</li>
+                        <li class="mb-2"><i class="fas fa-clock text-warning me-2"></i>Prioritize delivery time slots</li>
+                        <li class="mb-2"><i class="fas fa-box text-primary me-2"></i>Pack items securely</li>
+                        <li><i class="fas fa-tag text-info me-2"></i>Label orders clearly</li>
+                    </ul>
+                </div>
+                <div class="col-md-6">
+                    <h6 class="title-small mb-3">Quick Actions</h6>
+                    <div class="d-grid gap-2">
+                        <button onclick="markAllReady()" class="btn btn-success">
+                            <i class="fas fa-check-double me-2"></i> Mark All as Ready
+                        </button>
+                        <button onclick="notifyAllVendors()" class="btn btn-primary">
+                            <i class="fas fa-broadcast-tower me-2"></i> Notify All Vendors
+                        </button>
+                        <a href="{% url 'admin_dashboard:ready-for-pickup' %}" class="btn btn-info">
+                            <i class="fas fa-motorcycle me-2"></i> View Ready Orders
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Notification Modal -->
+<div class="modal fade" id="notificationModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title headline-small">Send Notification</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label label-medium">Message to Vendor</label>
+                    <textarea class="form-control" id="notificationMessage" rows="4" 
+                              placeholder="Type your message here..."></textarea>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="urgentNotification" checked>
+                    <label class="form-check-label body-small" for="urgentNotification">
+                        Mark as urgent (send SMS + App notification)
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="sendNotificationBtn">Send</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<style>
+    .preparation-item {
+        border: 1px solid var(--outline);
+        border-radius: var(--border-radius);
+        padding: 1rem;
+        transition: all 0.3s;
+    }
+    
+    .preparation-item:hover {
+        border-color: var(--primary);
+        box-shadow: var(--elevation-1);
+    }
+    
+    .preparation-item-header {
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid var(--outline);
+    }
+    
+    .preparation-item-body {
+        padding: 0.5rem 0;
+    }
+    
+    .preparation-item-footer {
+        padding-top: 0.5rem;
+        border-top: 1px solid var(--outline);
+    }
+    
+    .chip-sm {
+        padding: 0.2rem 0.5rem;
+        font-size: 0.7rem;
+    }
+</style>
+
+<script>
+    // View mode toggle
+    document.addEventListener('DOMContentLoaded', function() {
+        const vendorView = document.getElementById('vendorView');
+        const orderView = document.getElementById('orderView');
+        const vendorContent = document.getElementById('vendorViewContent');
+        const orderContent = document.getElementById('orderViewContent');
+        
+        vendorView.addEventListener('change', function() {
+            if (this.checked) {
+                vendorContent.style.display = 'block';
+                orderContent.style.display = 'none';
+            }
+        });
+        
+        orderView.addEventListener('change', function() {
+            if (this.checked) {
+                vendorContent.style.display = 'none';
+                orderContent.style.display = 'block';
+            }
+        });
+    });
+    
+    let currentVendorId = null;
+    let currentOrderId = null;
+    let currentItemId = null;
+    
+    // Notification functions
+    function notifyVendor(vendorId) {
+        currentVendorId = vendorId;
+        const modal = new bootstrap.Modal(document.getElementById('notificationModal'));
+        
+        document.getElementById('sendNotificationBtn').onclick = function() {
+            const message = document.getElementById('notificationMessage').value;
+            const urgent = document.getElementById('urgentNotification').checked;
+            
+            if (!message.trim()) {
+                crudHelper.showNotification('Please enter a message', 'warning');
+                return;
+            }
+            
+            window.showLoading();
+            // In a real app, you would make an AJAX call here
+            setTimeout(() => {
+                crudHelper.showNotification('Notification sent to vendor!', 'success');
+                bootstrap.Modal.getInstance(document.getElementById('notificationModal')).hide();
+            }, 1000);
+        };
+        
+        modal.show();
+    }
+    
+    function notifyAllVendors() {
+        if (confirm('Send notification to all vendors?')) {
+            window.showLoading();
+            // In a real app, you would make an AJAX call here
+            setTimeout(() => {
+                crudHelper.showNotification('Notifications sent to all vendors!', 'success');
+            }, 1500);
+        }
+    }
+    
+    // Mark items/orders ready
+    function markItemReady(itemId) {
+        if (confirm('Mark this item as ready for pickup?')) {
+            window.showLoading();
+            // In a real app, you would make an AJAX call here
+            setTimeout(() => {
+                crudHelper.showNotification('Item marked as ready!', 'success');
+                // Reload after a short delay
+                setTimeout(() => location.reload(), 1000);
+            }, 500);
+        }
+    }
+    
+    function markOrderReady(orderId) {
+        if (confirm('Mark this order as ready for pickup?')) {
+            window.showLoading();
+            window.location.href = "{% url 'admin_dashboard:update-order-status' '00000000-0000-0000-0000-000000000000' %}".replace('00000000-0000-0000-0000-000000000000', orderId) + '?status=ready';
+        }
+    }
+    
+    function markVendorReady(vendorId) {
+        if (confirm('Mark all items from this vendor as ready?')) {
+            window.showLoading();
+            // In a real app, you would make an AJAX call here
+            setTimeout(() => {
+                crudHelper.showNotification('All items marked as ready!', 'success');
+                // Reload after a short delay
+                setTimeout(() => location.reload(), 1000);
+            }, 1000);
+        }
+    }
+    
+    function markAllReady() {
+        if (confirm('Mark ALL orders as ready for pickup?')) {
+            window.showLoading();
+            // Create form for bulk action
+            const form = document.createElement('form');
+            form.method = 'post';
+            form.action = "{% url 'admin_dashboard:bulk-order-action' %}";
+            
+            {% for order in orders %}
+            const input{{ forloop.counter }} = document.createElement('input');
+            input{{ forloop.counter }}.type = 'hidden';
+            input{{ forloop.counter }}.name = 'order_ids';
+            input{{ forloop.counter }}.value = '{{ order.id }}';
+            form.appendChild(input{{ forloop.counter }});
+            {% endfor %}
+            
+            const actionInput = document.createElement('input');
+            actionInput.type = 'hidden';
+            actionInput.name = 'action';
+            actionInput.value = 'mark_ready';
+            form.appendChild(actionInput);
+            
+            const csrfInput = document.createElement('input');
+            csrfInput.type = 'hidden';
+            csrfInput.name = 'csrfmiddlewaretoken';
+            csrfInput.value = '{{ csrf_token }}';
+            form.appendChild(csrfInput);
+            
+            document.body.appendChild(form);
+            form.submit();
+        }
+    }
+    
+    // Quick navigation
+    function viewOrder(orderId) {
+        window.location.href = "{% url 'admin_dashboard:order-detail' '00000000-0000-0000-0000-000000000000' %}".replace('00000000-0000-0000-0000-000000000000', orderId);
+    }
+    
+    // Auto-refresh every minute
+    setTimeout(function() {
+        location.reload();
+    }, 60000);
+    
+    // Keyboard shortcuts for kitchen staff
+    document.addEventListener('keydown', function(e) {
+        // Space to mark first item ready
+        if (e.key === ' ') {
+            e.preventDefault();
+            const firstItem = document.querySelector('.btn-outline-primary');
+            if (firstItem) firstItem.click();
+        }
+        
+        // N for notify
+        if (e.key === 'n' && e.ctrlKey) {
+            e.preventDefault();
+            notifyAllVendors();
+        }
+        
+        // R for refresh
+        if (e.key === 'r' && e.ctrlKey) {
+            e.preventDefault();
+            location.reload();
+        }
+    });
+</script>
+{% endblock %}

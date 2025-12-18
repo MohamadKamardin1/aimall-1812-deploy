@@ -1,0 +1,114 @@
+<!-- admin_dashboard/templates/admin_dashboard/delivery/edit_delivery_zone.html -->
+{% extends 'admin_dashboard/base.html' %}
+{% load static %}
+
+{% block title %}Edit Delivery Zone - {{ zone.name }}{% endblock %}
+{% block page_title %}Edit Delivery Zone{% endblock %}
+
+{% block extra_css %}
+<style>
+  .main-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+  @media (min-width: 992px) {
+    .main-container { flex-direction: row; }
+  }
+  .form-container { flex: 2; min-width: 0; }
+  .info-container { flex: 1; min-width: 0; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="main-container">
+  <div class="form-container">
+    <div class="dashboard-card">
+      <div class="card-header">
+        <h6 class="title-medium mb-0">Edit Delivery Zone: {{ zone.name }}</h6>
+      </div>
+      <div class="card-body">
+        <form method="post">
+          {% csrf_token %}
+          <div class="mb-3">
+            <label class="form-label">Zone Name <span class="text-danger">*</span></label>
+            <input type="text" name="name" class="form-control" value="{{ zone.name }}" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Zone Type</label>
+            <select name="zone_type" class="form-select">
+              {% for value, label in zone_type_choices %}
+                <option value="{{ value }}" {% if zone.zone_type == value %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Priority</label>
+            <input type="number" name="priority" class="form-control" value="{{ zone.priority }}" min="1">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Description</label>
+            <textarea name="description" class="form-control" rows="3">{{ zone.description }}</textarea>
+          </div>
+
+          <!-- Pricing fields -->
+          <div id="fixedPriceField" class="mb-3" style="display: {% if zone.zone_type == 'fixed' %}block{% else %}none{% endif %};">
+            <label class="form-label">Fixed Price (TZS)</label>
+            <input type="number" name="fixed_price" class="form-control" value="{{ zone.fixed_price|floatformat:0 }}" step="100">
+          </div>
+          <div id="surchargeField" class="mb-3" style="display: {% if zone.zone_type == 'surcharge' %}block{% else %}none{% endif %};">
+            <label class="form-label">Surcharge (%)</label>
+            <input type="number" name="surcharge_percent" class="form-control" value="{{ zone.surcharge_percent|floatformat:1 }}" step="0.1">
+          </div>
+
+          <!-- Coordinates -->
+          <div class="mb-3">
+            <label class="form-label">Center Point Coordinates</label>
+            <div class="row g-2">
+              <div class="col-md-6">
+                <input type="text" name="center_latitude" class="form-control" value="{{ zone.center_point.y|floatformat:6 if zone.center_point else '' }}" placeholder="Latitude">
+              </div>
+              <div class="col-md-6">
+                <input type="text" name="center_longitude" class="form-control" value="{{ zone.center_point.x|floatformat:6 if zone.center_point else '' }}" placeholder="Longitude">
+              </div>
+            </div>
+          </div>
+
+          <div class="form-check form-switch mb-4">
+            <input class="form-check-input" type="checkbox" name="is_active" id="is_active" {% if zone.is_active %}checked{% endif %}>
+            <label class="form-check-label" for="is_active">Active Zone</label>
+          </div>
+
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary">Update Delivery Zone</button>
+            <a href="{% url 'admin_dashboard:manage-delivery-zones' zone.market.id %}" class="btn btn-outline-secondary">Cancel</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="info-container">
+    <div class="dashboard-card">
+      <div class="card-body text-center">
+        <i class="fas fa-truck fa-2x text-primary mb-2"></i>
+        <h6 class="title-medium">Zone ID</h6>
+        <p class="text-muted small">{{ zone.id }}</p>
+        <p class="text-muted small">Created: {{ zone.created_at|date:"Y-m-d" }}</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.querySelector('select[name="zone_type"]').addEventListener('change', function(e) {
+  document.getElementById('fixedPriceField').style.display = 'none';
+  document.getElementById('surchargeField').style.display = 'none';
+  if (e.target.value === 'fixed') {
+    document.getElementById('fixedPriceField').style.display = 'block';
+  } else if (e.target.value === 'surcharge') {
+    document.getElementById('surchargeField').style.display = 'block';
+  }
+});
+</script>
+{% endblock %}

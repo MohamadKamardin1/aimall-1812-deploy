@@ -1,0 +1,304 @@
+{% extends 'admin_dashboard/base.html' %}
+{% load static %}
+{% block title %}Market Detail - {{ market.name }} - AI Mall Admin{% endblock %}
+{% block page_title %}Market Detail: {{ market.name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+  .detail-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+  }
+  .market-icon {
+    font-size: 2.2rem;
+    color: #1976d2;
+  }
+  .market-title h3 {
+    margin: 0;
+  }
+  .btn-google {
+    background-color: #4285f4;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    font-weight: 600;
+  }
+  .btn-google:hover {
+    background-color: #3367d6;
+    color: white;
+  }
+  
+  .chip {
+    display: inline-block;
+    padding: 0.25rem 0.6rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border-radius: 12px;
+    line-height: 1;
+  }
+  .chip-success { background-color: #e8f5e9; color: #2e7d32; }
+  .chip-error { background-color: #ffebee; color: #c62828; }
+  .chip-warning { background-color: #fff3e0; color: #ef6c00; }
+  .chip-info { background-color: #e0f7fa; color: #006064; }
+  .chip-primary { background-color: #e3f2fd; color: #1565c0; }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Stats Cards -->
+<div class="row mb-4">
+  <div class="col-md-3">
+    <div class="dashboard-card p-3">
+      <div class="title-medium text-primary">{{ stats.active_zones }}</div>
+      <small class="text-muted">Active Market Zones</small>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="dashboard-card p-3">
+      <div class="title-medium text-success">{{ stats.active_delivery_zones }}</div>
+      <small class="text-muted">Active Delivery Zones</small>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="dashboard-card p-3">
+      <div class="title-medium text-info">{{ stats.customer_addresses }}</div>
+      <small class="text-muted">Customer Addresses</small>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="dashboard-card p-3">
+      <div class="title-medium text-warning">{{ stats.verified_addresses }}</div>
+      <small class="text-muted">Verified Addresses</small>
+    </div>
+  </div>
+</div>
+
+<!-- Market Information Card -->
+<div class="dashboard-card mb-4">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <h6 class="title-medium mb-0">Market Information</h6>
+    <span class="{% if market.is_active %}chip chip-success{% else %}chip chip-error{% endif %}">
+      {% if market.is_active %}Active{% else %}Inactive{% endif %}
+    </span>
+  </div>
+  <div class="card-body">
+    <!-- Header Section -->
+    <div class="detail-header mb-4">
+      <div class="market-icon">
+        <i class="fas fa-store"></i>
+      </div>
+      <div class="market-title flex-grow-1">
+        <h3>{{ market.name }}</h3>
+        <p class="text-muted mb-0">{{ market.description|default:"No description provided" }}</p>
+      </div>
+    </div>
+
+    <!-- Basic Information Row -->
+    <div class="row mb-4">
+      <div class="col-md-6">
+        <div class="info-item mb-3">
+          <label class="text-muted small mb-1">Location</label>
+          <div class="title-medium">{{ market.location|default:"—" }}</div>
+        </div>
+        <div class="info-item mb-3">
+          <label class="text-muted small mb-1">Contact Phone</label>
+          <div class="title-medium">{{ market.contact_phone|default:"—" }}</div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="info-item mb-3">
+          <label class="text-muted small mb-1">Address</label>
+          <div class="title-medium">{{ market.address|default:"—" }}</div>
+        </div>
+        <div class="info-item">
+          <label class="text-muted small mb-1">Operating Hours</label>
+          <div class="title-medium">
+            {% if market.opening_time and market.closing_time %}
+              {{ market.opening_time|time:"g:i A" }} – {{ market.closing_time|time:"g:i A" }}
+            {% else %}
+              <span class="text-muted">Not set</span>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Market Days -->
+    <div class="mb-4">
+      <label class="text-muted small mb-2 d-block">Market Days</label>
+      <div>
+        {% if market.market_days.exists %}
+          {% for day in market.market_days.all %}
+            <span class="chip chip-primary me-1 mb-1">
+              <i class="fas fa-calendar-day me-1"></i>{{ day.get_day_display }}
+            </span>
+          {% endfor %}
+        {% else %}
+          <span class="chip chip-warning">No market days set</span>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Coordinates & Google Maps -->
+    <div class="border-top pt-4">
+      <label class="text-muted small mb-2 d-block">Location Coordinates</label>
+      <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+        {% if market.latitude and market.longitude %}
+          <div>
+            <span class="title-medium">{{ market.latitude|floatformat:6 }}, {{ market.longitude|floatformat:6 }}</span>
+            <div class="text-muted small mt-1">Latitude, Longitude</div>
+          </div>
+          <div class="d-flex gap-2">
+            <a href="https://www.google.com/maps?q={{ market.latitude }},{{ market.longitude }}" 
+               target="_blank" 
+               rel="noopener" 
+               class="btn btn-google">
+              <i class="fab fa-google me-2"></i> Open in Google Maps
+            </a>
+            <button class="btn btn-outline-secondary" onclick="copyCoordinates()" title="Copy coordinates">
+              <i class="fas fa-copy"></i>
+            </button>
+          </div>
+        {% else %}
+          <div>
+            <span class="text-muted">No coordinates set</span>
+            <div class="text-muted small mt-1">Add location in edit mode</div>
+          </div>
+          <a href="{% url 'admin_dashboard:edit-market' market.id %}" class="btn btn-outline-primary">
+            <i class="fas fa-map-marker-alt me-1"></i> Add Location
+          </a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Zone Distribution -->
+<div class="row mb-4">
+  <div class="col-md-6">
+    <div class="dashboard-card h-100">
+      <div class="card-header">
+        <h6 class="title-medium mb-0">Market Zone Types</h6>
+      </div>
+      <div class="card-body">
+        {% if zone_types %}
+          <div class="list-group list-group-flush">
+            {% for zone in zone_types %}
+              <div class="list-group-item d-flex justify-content-between align-items-center border-0 px-0 py-2">
+                <span>{{ zone.zone_type|default:"General" }}</span>
+                <span class="badge bg-primary rounded-pill">{{ zone.count }}</span>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="empty-state">
+            <i class="fas fa-store text-muted"></i>
+            <p class="text-muted mb-0">No zone types defined</p>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="dashboard-card h-100">
+      <div class="card-header">
+        <h6 class="title-medium mb-0">Delivery Zone Types</h6>
+      </div>
+      <div class="card-body">
+        {% if delivery_zone_types %}
+          <div class="list-group list-group-flush">
+            {% for zone in delivery_zone_types %}
+              <div class="list-group-item d-flex justify-content-between align-items-center border-0 px-0 py-2">
+                <span>{{ zone.zone_type|default:"Standard" }}</span>
+                <span class="badge bg-success rounded-pill">{{ zone.count }}</span>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="empty-state">
+            <i class="fas fa-truck text-muted"></i>
+            <p class="text-muted mb-0">No delivery zones defined</p>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Action Buttons -->
+<div class="dashboard-card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+      <div>
+        <h6 class="title-medium mb-1">Market Management</h6>
+        <p class="text-muted mb-0">Manage different aspects of this market</p>
+      </div>
+      <div class="d-flex flex-wrap gap-2">
+        <a href="{% url 'admin_dashboard:edit-market' market.id %}" class="btn btn-primary">
+          <i class="fas fa-edit me-1"></i> Edit Market
+        </a>
+        <div class="btn-group">
+          <button type="button" class="btn btn-outline-info dropdown-toggle" data-bs-toggle="dropdown">
+            <i class="fas fa-cog me-1"></i> Manage
+          </button>
+          <ul class="dropdown-menu">
+            <li><a class="dropdown-item" href="{% url 'admin_dashboard:manage-market-zones' market.id %}">
+              <i class="fas fa-store me-2"></i> Market Zones
+            </a></li>
+            <li><a class="dropdown-item" href="{% url 'admin_dashboard:manage-delivery-zones' market.id %}">
+              <i class="fas fa-truck me-2"></i> Delivery Zones
+            </a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item" href="{% url 'admin_dashboard:market-detail' market.id %}">
+              <i class="fas fa-eye me-2"></i> View Details
+            </a></li>
+          </ul>
+        </div>
+        <a href="{% url 'admin_dashboard:manage-markets' %}" class="btn btn-outline-secondary">
+          <i class="fas fa-arrow-left me-1"></i> Back to List
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Quick Stats Footer -->
+<div class="mt-3 text-muted small">
+  <i class="fas fa-info-circle me-1"></i> 
+  Market created on {{ market.created_at|date:"F j, Y" }} • 
+  {% if market.market_days.exists %}{{ market.market_days.count }} operating day{% if market.market_days.count != 1 %}s{% endif %} • {% endif %}
+  {{ stats.active_zones }}/{{ zones.count }} active market zones
+</div>
+
+<script>
+function copyCoordinates() {
+  {% if market.latitude and market.longitude %}
+    const coords = '{{ market.latitude|floatformat:6 }}, {{ market.longitude|floatformat:6 }}';
+    navigator.clipboard.writeText(coords).then(() => {
+      const btn = event.target.closest('button');
+      const originalHTML = btn.innerHTML;
+      btn.innerHTML = '<i class="fas fa-check"></i>';
+      btn.classList.remove('btn-outline-secondary');
+      btn.classList.add('btn-outline-success');
+      
+      setTimeout(() => {
+        btn.innerHTML = originalHTML;
+        btn.classList.remove('btn-outline-success');
+        btn.classList.add('btn-outline-secondary');
+      }, 2000);
+    });
+  {% endif %}
+}
+
+// Initialize tooltips
+document.addEventListener('DOMContentLoaded', function() {
+  const tooltipTriggerList = [].slice.call(document.querySelectorAll('[title]'));
+  tooltipTriggerList.map(function (tooltipTriggerEl) {
+    return new bootstrap.Tooltip(tooltipTriggerEl);
+  });
+});
+</script>
+{% endblock %}

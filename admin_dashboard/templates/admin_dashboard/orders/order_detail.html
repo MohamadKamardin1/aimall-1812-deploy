@@ -1,0 +1,559 @@
+<!-- admin_dashboard/templates/admin_dashboard/orders/order_detail.html -->
+{% extends 'admin_dashboard/base.html' %}
+{% load humanize %}
+
+{% block title %}Order #{{ order.order_number }} - AI Mall Admin{% endblock %}
+
+{% block page_title %}Order #{{ order.order_number }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- Left Column: Order Details -->
+        <div class="col-lg-8">
+            <!-- Order Header -->
+            <div class="dashboard-card mb-4 animate__animated animate__fadeIn">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="m-0 font-weight-bold text-primary">Order Summary</h6>
+                            <p class="mb-0 body-small text-muted">{{ order.created_at|date:"F d, Y - h:i A" }}</p>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <a href="{% url 'admin_dashboard:order-timeline' order.id %}" class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-history me-1"></i> Timeline
+                            </a>
+                            <a href="{% url 'admin_dashboard:print-order' order.id %}" target="_blank" class="btn btn-sm btn-primary">
+                                <i class="fas fa-print me-1"></i> Print Invoice
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="title-small text-primary mb-3">Customer Information</h6>
+                            <div class="mb-3">
+                                <p class="body-small text-muted mb-1">Customer Name</p>
+                                <p class="title-medium mb-0">{{ order.customer.customer.names|default:"N/A" }}</p>
+                            </div>
+                            <div class="mb-3">
+                                <p class="body-small text-muted mb-1">Phone Number</p>
+                                <p class="title-medium mb-0">{{ order.customer.phone_number }}</p>
+                            </div>
+                            <div class="mb-3">
+                                <p class="body-small text-muted mb-1">Email</p>
+                                <p class="title-medium mb-0">{{ order.customer.email|default:"Not provided" }}</p>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="title-small text-primary mb-3">Delivery Information</h6>
+                            <div class="mb-3">
+                                <p class="body-small text-muted mb-1">Delivery Address</p>
+                                <p class="title-medium mb-0">{{ order.delivery_address.street_address }}</p>
+                                {% if order.delivery_location_name %}
+                                <p class="body-small text-muted">({{ order.delivery_location_name }})</p>
+                                {% endif %}
+                            </div>
+                            <div class="mb-3">
+                                <p class="body-small text-muted mb-1">Delivery Time</p>
+                                <p class="title-medium mb-0">{{ order.scheduled_delivery_date|date:"M d, Y" }}</p>
+                                <p class="body-small text-muted">{{ order.scheduled_delivery_time }}</p>
+                            </div>
+                            <div class="mb-3">
+                                <p class="body-small text-muted mb-1">Market</p>
+                                <p class="title-medium mb-0">{{ order.delivery_address.market.name|default:"Unknown" }}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Order Items -->
+            <div class="dashboard-card mb-4">
+                <div class="card-header">
+                    <h6 class="m-0 font-weight-bold text-primary">Order Items</h6>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Product</th>
+                                    <th>Vendor</th>
+                                    <th>Unit</th>
+                                    <th>Quantity</th>
+                                    <th class="text-end">Unit Price</th>
+                                    <th class="text-end">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in order.items.all %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-start">
+                                            <div class="me-3">
+                                                {% if item.product_variant.product_template.main_image %}
+                                                <img src="{{ item.product_variant.product_template.main_image.url }}" 
+                                                     alt="{{ item.product_variant.product_template.name }}"
+                                                     class="rounded" style="width: 40px; height: 40px; object-fit: cover;">
+                                                {% else %}
+                                                <div class="bg-light rounded d-flex align-items-center justify-content-center" 
+                                                     style="width: 40px; height: 40px;">
+                                                    <i class="fas fa-box text-muted"></i>
+                                                </div>
+                                                {% endif %}
+                                            </div>
+                                            <div>
+                                                <p class="title-small mb-0">{{ item.product_variant.product_template.name }}</p>
+                                                <p class="body-small text-muted mb-0">
+                                                    {{ item.product_variant.quality_grade|default:"Standard" }}
+                                                </p>
+                                                {% if item.special_instructions %}
+                                                <p class="body-small text-warning mb-0">
+                                                    <i class="fas fa-info-circle me-1"></i>{{ item.special_instructions|truncatechars:50 }}
+                                                </p>
+                                                {% endif %}
+                                                {% if item.selected_addons.exists %}
+                                                <div class="mt-1">
+                                                    <p class="body-small text-muted mb-1">Add-ons:</p>
+                                                    {% for addon in item.selected_addons.all %}
+                                                    <span class="chip chip-primary chip-sm">{{ addon.name }}</span>
+                                                    {% endfor %}
+                                                </div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <p class="title-small mb-0">{{ item.product_variant.vendor.business_name }}</p>
+                                        <p class="body-small text-muted mb-0">{{ item.product_variant.vendor.user.phone_number }}</p>
+                                    </td>
+                                    <td>
+                                        <span class="chip chip-primary">{{ item.measurement_unit.symbol }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="title-medium">{{ item.quantity }}</span>
+                                    </td>
+                                    <td class="text-end">
+                                        <span class="title-medium">TZS {{ item.unit_price|floatformat:2|intcomma }}</span>
+                                    </td>
+                                    <td class="text-end">
+                                        <span class="title-medium text-primary">TZS {{ item.total_price|floatformat:2|intcomma }}</span>
+                                        {% if item.addons_total > 0 %}
+                                        <p class="body-small text-muted mb-0">+ TZS {{ item.addons_total|floatformat:2 }} addons</p>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Order Status Timeline -->
+            <div class="dashboard-card mb-4">
+                <div class="card-header">
+                    <h6 class="m-0 font-weight-bold text-primary">Order Timeline</h6>
+                </div>
+                <div class="card-body">
+                    <div class="timeline">
+                        {% for event in status_timeline %}
+                        <div class="timeline-item {% if event.1 %}completed{% endif %}">
+                            <div class="timeline-marker">
+                                {% if event.1 %}
+                                <i class="fas fa-check-circle"></i>
+                                {% else %}
+                                <i class="fas fa-circle"></i>
+                                {% endif %}
+                            </div>
+                            <div class="timeline-content">
+                                <h6 class="title-small">{{ event.0 }}</h6>
+                                {% if event.1 %}
+                                <p class="body-small text-muted mb-0">{{ event.1|date:"M d, Y - h:i A" }}</p>
+                                {% else %}
+                                <p class="body-small text-muted mb-0">Pending</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: Order Actions & Summary -->
+        <div class="col-lg-4">
+            <!-- Order Status Card -->
+            <div class="dashboard-card mb-4 animate__animated animate__fadeInRight">
+                <div class="card-header">
+                    <h6 class="m-0 font-weight-bold text-primary">Order Status</h6>
+                </div>
+                <div class="card-body">
+                    <div class="text-center mb-4">
+                        {% with status=order.status %}
+                        <span class="display-6 d-block mb-2">
+                            {% if status == 'pending' %}
+                            <i class="fas fa-clock text-warning"></i>
+                            {% elif status == 'confirmed' %}
+                            <i class="fas fa-check-circle text-info"></i>
+                            {% elif status == 'preparing' %}
+                            <i class="fas fa-utensils text-primary"></i>
+                            {% elif status == 'ready' %}
+                            <i class="fas fa-box text-primary"></i>
+                            {% elif status == 'assigned' %}
+                            <i class="fas fa-user text-primary"></i>
+                            {% elif status == 'picked_up' %}
+                            <i class="fas fa-motorcycle text-warning"></i>
+                            {% elif status == 'on_the_way' %}
+                            <i class="fas fa-truck text-info"></i>
+                            {% elif status == 'delivered' %}
+                            <i class="fas fa-check-circle text-success"></i>
+                            {% elif status == 'cancelled' %}
+                            <i class="fas fa-times-circle text-danger"></i>
+                            {% else %}
+                            <i class="fas fa-question-circle text-secondary"></i>
+                            {% endif %}
+                        </span>
+                        <h4 class="title-large mb-2">{{ order.get_status_display }}</h4>
+                        <span class="chip {% if status == 'pending' %}chip-warning
+                                       {% elif status == 'confirmed' or status == 'preparing' %}chip-primary
+                                       {% elif status == 'ready' %}chip-info
+                                       {% elif status == 'delivered' %}chip-success
+                                       {% elif status == 'cancelled' or status == 'failed' %}chip-error
+                                       {% else %}chip-primary{% endif %}">
+                            {{ order.get_status_display }}
+                        </span>
+                        {% endwith %}
+                    </div>
+
+                    <!-- Status Update Form -->
+                    <form method="post" action="{% url 'admin_dashboard:update-order-status' order.id %}">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label class="form-label label-medium">Update Status</label>
+                            <select name="status" class="form-select" required>
+                                {% for status_code, status_name in order_statuses %}
+                                <option value="{{ status_code }}" {% if order.status == status_code %}selected{% endif %}>
+                                    {{ status_name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label label-medium">Status Note</label>
+                            <textarea name="note" class="form-control" rows="2" 
+                                      placeholder="Add a note about this status change..."></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="fas fa-sync me-2"></i> Update Status
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Driver Assignment Card -->
+            <div class="dashboard-card mb-4">
+                <div class="card-header">
+                    <h6 class="m-0 font-weight-bold text-primary">Driver Assignment</h6>
+                </div>
+                <div class="card-body">
+                    {% if order.driver %}
+                    <div class="text-center mb-4">
+                        <div class="mb-3">
+                            <i class="fas fa-motorcycle fa-3x text-primary"></i>
+                        </div>
+                        <h5 class="title-large mb-1">{{ order.driver.driver.names }}</h5>
+                        <p class="body-medium text-muted mb-2">{{ order.driver.driver.vehicle_plate }}</p>
+                        <p class="body-small text-muted">{{ order.driver.phone_number }}</p>
+                        <span class="chip {% if order.driver.driver.is_available %}chip-success{% else %}chip-warning{% endif %}">
+                            {% if order.driver.driver.is_available %}Available{% else %}Busy{% endif %}
+                        </span>
+                    </div>
+                    {% endif %}
+
+                    <!-- Driver Assignment Form -->
+                    <form method="post" action="{% url 'admin_dashboard:assign-driver' order.id %}">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label class="form-label label-medium">Assign to Driver</label>
+                            <select name="driver_id" class="form-select">
+                                <option value="">-- Select Driver --</option>
+                                {% for driver in available_drivers %}
+                                <option value="{{ driver.user.id }}" 
+                                        {% if order.driver and order.driver.id == driver.user.id %}selected{% endif %}>
+                                    {{ driver.names }} - {{ driver.vehicle_plate }}
+                                    {% if not driver.is_available %} (Busy){% endif %}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-outline-primary w-100">
+                            {% if order.driver %}
+                            <i class="fas fa-exchange-alt me-2"></i> Change Driver
+                            {% else %}
+                            <i class="fas fa-user-plus me-2"></i> Assign Driver
+                            {% endif %}
+                        </button>
+                        {% if order.driver %}
+                        <button type="button" onclick="unassignDriver()" class="btn btn-outline-danger w-100 mt-2">
+                            <i class="fas fa-user-minus me-2"></i> Unassign Driver
+                        </button>
+                        {% endif %}
+                    </form>
+                </div>
+            </div>
+
+            <!-- Order Summary Card -->
+            <div class="dashboard-card mb-4">
+                <div class="card-header">
+                    <h6 class="m-0 font-weight-bold text-primary">Payment Summary</h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="body-medium">Items Total:</span>
+                        <span class="title-small">TZS {{ order.items_total|floatformat:2|intcomma }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="body-medium">Delivery Fee:</span>
+                        <span class="title-small">TZS {{ order.delivery_fee|floatformat:2|intcomma }}</span>
+                    </div>
+                    {% if order.service_fee > 0 %}
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="body-medium">Service Fee:</span>
+                        <span class="title-small">TZS {{ order.service_fee|floatformat:2|intcomma }}</span>
+                    </div>
+                    {% endif %}
+                    {% if order.discount_amount > 0 %}
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="body-medium text-success">Discount:</span>
+                        <span class="title-small text-success">- TZS {{ order.discount_amount|floatformat:2|intcomma }}</span>
+                    </div>
+                    {% endif %}
+                    <hr>
+                    <div class="d-flex justify-content-between mb-3">
+                        <span class="title-medium">Total Amount:</span>
+                        <span class="title-large text-primary">TZS {{ order.total_amount|floatformat:2|intcomma }}</span>
+                    </div>
+
+                    <!-- Payment Status -->
+                    <div class="mb-4">
+                        <label class="form-label label-medium">Payment Status</label>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="chip {% if order.is_paid %}chip-success{% else %}chip-warning{% endif %}">
+                                {% if order.is_paid %}Paid{% else %}Unpaid{% endif %}
+                            </span>
+                            <form method="post" action="{% url 'admin_dashboard:update-payment-status' order.id %}" class="d-inline">
+                                {% csrf_token %}
+                                <input type="hidden" name="is_paid" value="{% if order.is_paid %}false{% else %}true{% endif %}">
+                                <button type="submit" class="btn btn-sm {% if order.is_paid %}btn-outline-warning{% else %}btn-outline-success{% endif %}">
+                                    {% if order.is_paid %}Mark as Unpaid{% else %}Mark as Paid{% endif %}
+                                </button>
+                            </form>
+                        </div>
+                        <p class="body-small text-muted mt-2 mb-0">
+                            Method: {{ order.get_payment_method_display }}
+                            {% if order.payment_reference %}
+                            <br>Reference: {{ order.payment_reference }}
+                            {% endif %}
+                        </p>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="d-grid gap-2">
+                        {% if order.status in 'pending,confirmed' %}
+                        <button type="button" onclick="confirmCancellation()" class="btn btn-outline-danger">
+                            <i class="fas fa-times me-2"></i> Cancel Order
+                        </button>
+                        {% endif %}
+                        
+                        <a href="{% url 'admin_dashboard:manage-orders' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-arrow-left me-2"></i> Back to Orders
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Order Notes Card -->
+            {% if status_updates %}
+            <div class="dashboard-card">
+                <div class="card-header">
+                    <h6 class="m-0 font-weight-bold text-primary">Status History</h6>
+                </div>
+                <div class="card-body">
+                    <div class="status-history">
+                        {% for update in status_updates %}
+                        <div class="status-item mb-3 pb-3 border-bottom">
+                            <div class="d-flex justify-content-between align-items-start mb-1">
+                                <span class="chip chip-sm chip-primary">{{ update.get_new_status_display }}</span>
+                                <span class="body-small text-muted">{{ update.created_at|date:"h:i A" }}</span>
+                            </div>
+                            <p class="body-medium mb-1">
+                                <i class="fas fa-arrow-right text-muted me-1"></i>
+                                Changed from {{ update.get_old_status_display }}
+                            </p>
+                            {% if update.note %}
+                            <p class="body-small text-muted mb-0">
+                                <i class="fas fa-sticky-note me-1"></i>{{ update.note }}
+                            </p>
+                            {% endif %}
+                            <p class="body-small text-muted mt-1 mb-0">
+                                <i class="fas fa-user me-1"></i>{{ update.updated_by.get_full_name|default:update.updated_by.phone_number }}
+                            </p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Cancellation Modal -->
+<div class="modal fade" id="cancelModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title headline-small"><i class="fas fa-exclamation-triangle me-2"></i>Cancel Order</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="{% url 'admin_dashboard:cancel-order' order.id %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <p class="body-medium">Are you sure you want to cancel order #{{ order.order_number }}?</p>
+                    <div class="alert alert-warning">
+                        <i class="fas fa-info-circle me-2"></i>
+                        This action cannot be undone. Customer will be notified.
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label label-medium">Cancellation Reason</label>
+                        <textarea name="cancellation_reason" class="form-control" rows="3" required 
+                                  placeholder="Please provide a reason for cancellation..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Keep Order</button>
+                    <button type="submit" class="btn btn-warning">Cancel Order</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Driver Unassign Confirmation -->
+<div class="modal fade" id="unassignModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title headline-small"><i class="fas fa-user-minus me-2"></i>Unassign Driver</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="{% url 'admin_dashboard:assign-driver' order.id %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <p class="body-medium">Are you sure you want to unassign {{ order.driver.driver.names }} from this order?</p>
+                    <input type="hidden" name="driver_id" value="">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Keep Assigned</button>
+                    <button type="submit" class="btn btn-info">Unassign Driver</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<style>
+    .timeline {
+        position: relative;
+        padding-left: 30px;
+    }
+    
+    .timeline::before {
+        content: '';
+        position: absolute;
+        left: 10px;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background-color: var(--outline);
+    }
+    
+    .timeline-item {
+        position: relative;
+        margin-bottom: 20px;
+    }
+    
+    .timeline-item:last-child {
+        margin-bottom: 0;
+    }
+    
+    .timeline-marker {
+        position: absolute;
+        left: -30px;
+        top: 0;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1;
+    }
+    
+    .timeline-item.completed .timeline-marker {
+        background-color: var(--primary);
+        color: white;
+    }
+    
+    .timeline-item:not(.completed) .timeline-marker {
+        background-color: var(--surface-variant);
+        color: var(--on-surface-variant);
+    }
+    
+    .timeline-content {
+        padding-bottom: 10px;
+    }
+    
+    .chip-sm {
+        padding: 0.2rem 0.5rem;
+        font-size: 0.7rem;
+    }
+    
+    .status-item:last-child {
+        border-bottom: none !important;
+        margin-bottom: 0 !important;
+        padding-bottom: 0 !important;
+    }
+</style>
+
+<script>
+    function confirmCancellation() {
+        const modal = new bootstrap.Modal(document.getElementById('cancelModal'));
+        modal.show();
+    }
+    
+    function unassignDriver() {
+        const modal = new bootstrap.Modal(document.getElementById('unassignModal'));
+        modal.show();
+    }
+    
+    // Auto-refresh the page every 30 seconds for active orders
+    {% if order.status in 'pending,confirmed,preparing,ready,assigned,picked_up,on_the_way' %}
+    setTimeout(function() {
+        location.reload();
+    }, 30000);
+    {% endif %}
+    
+    // Form submission loading
+    document.querySelectorAll('form').forEach(form => {
+        form.addEventListener('submit', function() {
+            window.showLoading();
+        });
+    });
+</script>
+{% endblock %}

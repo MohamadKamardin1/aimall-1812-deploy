@@ -1,0 +1,82 @@
+<!-- admin_dashboard/templates/admin_dashboard/locations/edit_delivery_zone.html -->
+{% extends 'admin_dashboard/base.html' %}
+{% load static %}
+
+{% block title %}Edit Delivery Zone - {{ zone.name }}{% endblock %}
+{% block page_title %}Edit Delivery Zone{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+    <div class="dashboard-card">
+      <div class="card-header">
+        <h6 class="title-medium mb-0">Edit: {{ zone.name }}</h6>
+      </div>
+      <div class="card-body">
+        <form method="post">
+          {% csrf_token %}
+          <div class="mb-3">
+            <label class="form-label body-medium">Zone Name *</label>
+            <input type="text" name="name" class="form-control" required value="{{ zone.name }}">
+          </div>
+          <div class="mb-3">
+            <label class="form-label body-medium">Description</label>
+            <textarea name="description" class="form-control" rows="2">{{ zone.description }}</textarea>
+          </div>
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label body-medium">Base Delivery Fee (TZS) *</label>
+              <input type="number" step="100" name="base_delivery_fee" class="form-control" required value="{{ zone.base_delivery_fee }}">
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label body-medium">Manual Fee (TZS)</label>
+              <input type="number" step="100" name="manual_delivery_fee" class="form-control" value="{{ zone.manual_delivery_fee|default:'' }}">
+            </div>
+          </div>
+          <div class="form-check mb-3">
+            <input class="form-check-input" type="checkbox" name="is_manual_pricing" id="is_manual_pricing" {% if zone.is_manual_pricing %}checked{% endif %}>
+            <label class="form-check-label body-medium" for="is_manual_pricing">Use Manual Pricing</label>
+          </div>
+          <div class="form-check mb-3">
+            <input class="form-check-input" type="checkbox" name="is_active" id="is_active" {% if zone.is_active %}checked{% endif %}>
+            <label class="form-check-label body-medium" for="is_active">Active Zone</label>
+          </div>
+          
+          <!-- Geographic Boundaries -->
+          <h6 class="title-small mb-2">Geographic Boundaries (Optional)</h6>
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label body-small">Min Latitude</label>
+              <input type="number" step="0.000001" name="min_latitude" class="form-control" value="{{ zone.min_latitude|default:'' }}">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label body-small">Max Latitude</label>
+              <input type="number" step="0.000001" name="max_latitude" class="form-control" value="{{ zone.max_latitude|default:'' }}">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label body-small">Min Longitude</label>
+              <input type="number" step="0.000001" name="min_longitude" class="form-control" value="{{ zone.min_longitude|default:'' }}">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label body-small">Max Longitude</label>
+              <input type="number" step="0.000001" name="max_longitude" class="form-control" value="{{ zone.max_longitude|default:'' }}">
+            </div>
+          </div>
+          
+          <div class="d-flex gap-2 mt-4">
+            <button type="submit" class="btn btn-primary">Update Zone</button>
+            <a href="{% url 'admin_dashboard:manage-delivery-zones' zone.market.id %}" class="btn btn-outline-secondary">Cancel</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.getElementById('is_manual_pricing').addEventListener('change', function() {
+  const manualFeeField = document.querySelector('input[name="manual_delivery_fee"]').closest('.mb-3');
+  manualFeeField.style.display = this.checked ? 'block' : 'none';
+});
+</script>
+{% endblock %}

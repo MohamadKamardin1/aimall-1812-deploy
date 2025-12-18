@@ -1,0 +1,128 @@
+<!-- admin_dashboard/templates/admin_dashboard/categories/manage_categories.html -->
+{% extends 'admin_dashboard/base.html' %}
+{% load static %}
+
+{% block title %}Categories - AI Mall Admin{% endblock %}
+{% block page_title %}Product Categories{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+  <div class="col-md-3">
+    <div class="dashboard-card p-3">
+      <div class="title-medium">Total: {{ total_categories }}</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="dashboard-card p-3">
+      <div class="title-medium text-success">Active: {{ active_categories }}</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="dashboard-card p-3">
+      <div class="title-medium">Top-Level: {{ top_level_categories }}</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="dashboard-card p-3">
+      <div class="title-medium text-primary">Subcategories: {{ total_categories|add:"-top_level_categories" }}</div>
+    </div>
+  </div>
+</div>
+
+<!-- Filter Bar -->
+<div class="search-filter-bar">
+  <form method="get" class="row g-3">
+    <div class="col-md-3">
+      <select name="status" class="form-select">
+        <option value="all" {% if filters.status == 'all' %}selected{% endif %}>All Status</option>
+        <option value="active" {% if filters.status == 'active' %}selected{% endif %}>Active</option>
+        <option value="inactive" {% if filters.status == 'inactive' %}selected{% endif %}>Inactive</option>
+      </select>
+    </div>
+    <div class="col-md-3">
+      <select name="parent" class="form-select">
+        <option value="">All Categories</option>
+        <option value="top-level" {% if filters.parent == 'top-level' %}selected{% endif %}>Top-Level Only</option>
+        {% for parent in parent_options %}
+          <option value="{{ parent.id }}" {% if filters.parent == parent.id|stringformat:"s" %}selected{% endif %}>
+            — {{ parent.name }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2 d-flex align-items-end">
+      <button type="submit" class="btn btn-primary w-100">Filter</button>
+    </div>
+    <div class="col-md-4 d-flex align-items-end">
+      <a href="{% url 'admin_dashboard:add-category' %}" class="btn btn-primary w-100">
+        <i class="fas fa-plus me-1"></i> Add Category
+      </a>
+    </div>
+  </form>
+</div>
+
+<!-- Categories Table -->
+<div class="dashboard-card">
+  <div class="card-body p-0">
+    {% if categories %}
+      <div class="table-responsive">
+        <table class="data-table table mb-0">
+          <thead>
+            <tr>
+              <th>Category</th>
+              <th>Parent</th>
+              <th>Profit %</th>
+              <th>Products</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for cat in categories %}
+            <tr>
+              <td class="title-medium">
+                {% if cat.image %}
+                  <img src="{{ cat.image.url }}" alt="{{ cat.name }}" style="width: 30px; height: 30px; object-fit: cover; border-radius: 4px; margin-right: 8px;">
+                {% endif %}
+                {{ cat.name }}
+              </td>
+              <td>
+                {% if cat.parent %}
+                  <span class="chip chip-primary">{{ cat.parent.name }}</span>
+                {% else %}
+                  <span class="chip">Top-Level</span>
+                {% endif %}
+              </td>
+              <td>{{ cat.profit_percentage }}%</td>
+              <td>{{ cat.products.count }}</td>
+              <td>
+                {% if cat.is_active %}
+                  <span class="chip chip-success">Active</span>
+                {% else %}
+                  <span class="chip chip-error">Inactive</span>
+                {% endif %}
+              </td>
+              <td>
+                <a href="{% url 'admin_dashboard:edit-category' cat.id %}" class="btn btn-outline-primary btn-sm me-1">
+                  <i class="fas fa-edit"></i>
+                </a>
+                <a href="#" class="btn btn-outline-danger btn-sm"
+                   onclick="crudHelper.confirmDelete('{% url 'admin_dashboard:delete-category' cat.id %}', '{{ cat.name }}'); return false;">
+                  <i class="fas fa-trash"></i>
+                </a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <i class="fas fa-tags"></i>
+        <p>No categories found.</p>
+        <a href="{% url 'admin_dashboard:add-category' %}" class="btn btn-primary mt-2">Add First Category</a>
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

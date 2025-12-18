@@ -1,0 +1,37 @@
+Your AIMall Driver Login Code
+================================
+
+Hello Driver,
+
+You've requested to log in to your AIMall Driver account. Use the code below to complete your login:
+
+LOGIN CODE: {{ otp }}
+
+This code expires in {{ otp_expiry_minutes }} minutes.
+
+ACCOUNT DETAILS:
+- Phone: {{ phone_number }}
+- Email: {{ email }}
+
+IMPORTANT:
+Never share this code with anyone. AIMall staff will never ask for your login code.
+
+---
+
+DIDN'T REQUEST THIS?
+
+If you didn't request a login code, your account is still secure. You can ignore this email and your account will remain protected.
+
+NEED HELP?
+
+Contact our support team at: {{ support_email }}
+
+---
+
+© 2025 AIMall. All rights reserved.
+Visit: https://aimall.tz
+Privacy: https://aimall.tz/privacy
+Terms: https://aimall.tz/terms
+
+AIMall Driver Platform
+Tanzania 🇹🇿

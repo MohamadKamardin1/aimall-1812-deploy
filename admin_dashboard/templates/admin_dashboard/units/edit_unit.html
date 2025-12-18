@@ -1,0 +1,51 @@
+<!-- admin_dashboard/templates/admin_dashboard/units/edit_unit.html -->
+{% extends 'admin_dashboard/base.html' %}
+{% load static %}
+
+{% block title %}Edit Unit - {{ unit.name }}{% endblock %}
+{% block page_title %}Edit Measurement Unit{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-6">
+    <div class="dashboard-card">
+      <div class="card-header">
+        <h6 class="title-medium mb-0">Edit: {{ unit.name }}</h6>
+      </div>
+      <div class="card-body">
+        <form method="post">
+          {% csrf_token %}
+          <div class="mb-3">
+            <label class="form-label body-medium">Unit Name *</label>
+            <input type="text" name="name" class="form-control" required value="{{ unit.name }}">
+          </div>
+          <div class="mb-3">
+            <label class="form-label body-medium">Symbol *</label>
+            <input type="text" name="symbol" class="form-control" required value="{{ unit.symbol }}">
+          </div>
+          <div class="mb-3">
+            <label class="form-label body-medium">Unit Type *</label>
+            <select name="unit_type" class="form-select" required>
+              {% for ut in unit_types %}
+                <option value="{{ ut.id }}" {% if unit.unit_type_id == ut.id %}selected{% endif %}>{{ ut.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label body-medium">Conversion Factor *</label>
+            <input type="number" step="0.001" name="conversion_factor" class="form-control" required value="{{ unit.conversion_factor }}">
+          </div>
+          <div class="form-check mb-3">
+            <input class="form-check-input" type="checkbox" name="is_base_unit" id="is_base_unit" {% if unit.is_base_unit %}checked{% endif %}>
+            <label class="form-check-label body-medium" for="is_base_unit">Is Base Unit</label>
+          </div>
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary">Update Unit</button>
+            <a href="{% url 'admin_dashboard:measurement-units' %}" class="btn btn-outline-secondary">Cancel</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

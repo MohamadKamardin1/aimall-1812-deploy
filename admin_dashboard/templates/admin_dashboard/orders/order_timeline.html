@@ -1,0 +1,671 @@
+<!-- admin_dashboard/templates/admin_dashboard/orders/order_timeline.html -->
+{% extends 'admin_dashboard/base.html' %}
+{% load humanize %}
+
+{% block title %}Order Timeline #{{ order.order_number }} - AI Mall Admin{% endblock %}
+
+{% block page_title %}Order Timeline #{{ order.order_number }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Order Summary -->
+    <div class="dashboard-card mb-4 animate__animated animate__fadeIn">
+        <div class="card-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="m-0 font-weight-bold text-primary">Order Timeline</h6>
+                    <p class="mb-0 body-small text-muted">
+                        Order #{{ order.order_number }} • {{ order.customer.customer.names|default:order.customer.phone_number }}
+                    </p>
+                </div>
+                <div class="d-flex gap-2">
+                    <a href="{% url 'admin_dashboard:order-detail' order.id %}" class="btn btn-sm btn-outline-primary">
+                        <i class="fas fa-arrow-left me-1"></i> Back to Order
+                    </a>
+                    <a href="{% url 'admin_dashboard:print-order' order.id %}" target="_blank" class="btn btn-sm btn-primary">
+                        <i class="fas fa-print me-1"></i> Print Invoice
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="detail-item mb-3">
+                        <div class="detail-label body-small text-muted">Order Status</div>
+                        <div class="detail-value title-medium">
+                            <span class="chip {% if order.status == 'pending' %}chip-warning
+                                           {% elif order.status == 'confirmed' or status == 'preparing' %}chip-primary
+                                           {% elif order.status == 'ready' %}chip-info
+                                           {% elif order.status == 'delivered' %}chip-success
+                                           {% elif order.status == 'cancelled' or status == 'failed' %}chip-error
+                                           {% else %}chip-primary{% endif %}">
+                                {{ order.get_status_display }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="detail-item mb-3">
+                        <div class="detail-label body-small text-muted">Order Date</div>
+                        <div class="detail-value title-medium">{{ order.created_at|date:"F d, Y - h:i A" }}</div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="detail-item mb-3">
+                        <div class="detail-label body-small text-muted">Total Amount</div>
+                        <div class="detail-value title-medium text-primary">TZS {{ order.total_amount|floatformat:2|intcomma }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Timeline Visualization -->
+    <div class="dashboard-card mb-4">
+        <div class="card-header">
+            <h6 class="m-0 font-weight-bold text-primary">Order Journey</h6>
+        </div>
+        <div class="card-body">
+            <div class="timeline-visual">
+                {% for event in timeline_events %}
+<div class="timeline-step {% if forloop.first %}first{% endif %} {% if forloop.last %}last{% endif %}">
+    <div class="timeline-step-icon {{ event.color }}">
+        <i class="{{ event.icon }}"></i>
+    </div>
+    <div class="timeline-step-content">
+        <div class="timeline-step-header">
+            <h6 class="title-medium mb-1">{{ event.event }}</h6>
+            <span class="body-small text-muted">{{ event.time|date:"M d, Y - h:i A" }}</span>
+        </div>
+        <div class="timeline-step-body">
+            <p class="body-medium mb-2">{{ event.description }}</p>
+            {% if event.updated_by %}
+            <p class="body-small text-muted mb-0">
+                <i class="fas fa-user me-1"></i>Updated by: {{ event.updated_by.get_full_name|default:event.updated_by.phone_number }}
+            </p>
+            {% endif %}
+        </div>
+    </div>
+    {% if not forloop.last %}
+    <div class="timeline-step-connector"></div>
+    {% endif %}
+</div>
+{% empty %}
+<div class="text-center py-5">
+    <i class="fas fa-history fa-3x text-muted mb-3"></i>
+    <h5 class="title-medium">No Timeline Events</h5>
+    <p class="body-medium text-muted">No timeline events recorded for this order yet.</p>
+</div>
+{% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Status Updates Table -->
+    <div class="dashboard-card">
+        <div class="card-header">
+            <h6 class="m-0 font-weight-bold text-primary">Detailed Status History</h6>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th width="40"></th>
+                            <th>Status Change</th>
+                            <th>Updated By</th>
+                            <th>Notes</th>
+                            <th>Timestamp</th>
+                            <th>Duration</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for update in status_updates %}
+                        <tr>
+                            <td class="text-center">
+                                <div class="status-change-icon">
+                                    <i class="fas fa-exchange-alt text-{{ update.color|default:'primary' }}"></i>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <span class="chip chip-sm {% if update.new_status == 'pending' %}chip-warning
+                                                          {% elif update.new_status == 'confirmed' %}chip-primary
+                                                          {% elif update.new_status == 'delivered' %}chip-success
+                                                          {% elif update.new_status == 'cancelled' %}chip-error
+                                                          {% else %}chip-primary{% endif %}">
+                                        {{ update.get_old_status_display }}
+                                    </span>
+                                    <i class="fas fa-arrow-right mx-2 text-muted"></i>
+                                    <span class="chip chip-sm {% if update.new_status == 'pending' %}chip-warning
+                                                          {% elif update.new_status == 'confirmed' %}chip-primary
+                                                          {% elif update.new_status == 'delivered' %}chip-success
+                                                          {% elif update.new_status == 'cancelled' %}chip-error
+                                                          {% else %}chip-primary{% endif %}">
+                                        {{ update.get_new_status_display }}
+                                    </span>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="title-small">{{ update.updated_by.get_full_name|default:update.updated_by.phone_number }}</div>
+                                <div class="body-small text-muted">{{ update.updated_by.user_type|title }}</div>
+                            </td>
+                            <td>
+                                {% if update.note %}
+                                <p class="body-medium mb-0">{{ update.note }}</p>
+                                {% else %}
+                                <span class="body-small text-muted">No notes</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="title-small">{{ update.created_at|date:"M d, Y" }}</div>
+                                <div class="body-small text-muted">{{ update.created_at|date:"h:i A" }}</div>
+                            </td>
+                            <td>
+                                {% if forloop.counter0 > 0 %}
+                                {% with prev_update=status_updates|slice:forloop.counter0|last %}
+                                {% with duration=update.created_at|timesince:prev_update.created_at %}
+                                <span class="chip chip-primary chip-sm">{{ duration }}</span>
+                                {% endwith %}
+                                {% endwith %}
+                                {% else %}
+                                <span class="chip chip-primary chip-sm">Start</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center py-5">
+                                <div class="empty-state">
+                                    <i class="fas fa-history fa-3x text-muted mb-3"></i>
+                                    <h5 class="title-medium">No Status Updates</h5>
+                                    <p class="body-medium text-muted">No status updates recorded for this order.</p>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Performance Metrics -->
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="dashboard-card h-100">
+                <div class="card-header">
+                    <h6 class="m-0 font-weight-bold text-primary">Time Metrics</h6>
+                </div>
+                <div class="card-body">
+                    <div class="time-metrics">
+                        {% if order.confirmed_at %}
+                        <div class="time-metric">
+                            <div class="time-label">Order Confirmation</div>
+                            <div class="time-value">
+                                {% with duration=order.confirmed_at|timesince:order.created_at %}
+                                {{ duration }}
+                                {% endwith %}
+                            </div>
+                            <div class="time-bar">
+                                <div class="time-fill" style="width: 20%"></div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if order.picked_up_at and order.confirmed_at %}
+                        <div class="time-metric">
+                            <div class="time-label">Preparation Time</div>
+                            <div class="time-value">
+                                {% with duration=order.ready_at|timesince:order.confirmed_at %}
+                                {{ duration }}
+                                {% endwith %}
+                            </div>
+                            <div class="time-bar">
+                                <div class="time-fill" style="width: 40%"></div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if order.picked_up_at and order.ready_at %}
+                        <div class="time-metric">
+                            <div class="time-label">Pickup Wait Time</div>
+                            <div class="time-value">
+                                {% with duration=order.picked_up_at|timesince:order.ready_at %}
+                                {{ duration }}
+                                {% endwith %}
+                            </div>
+                            <div class="time-bar">
+                                <div class="time-fill" style="width: 60%"></div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if order.delivered_at and order.picked_up_at %}
+                        <div class="time-metric">
+                            <div class="time-label">Delivery Time</div>
+                            <div class="time-value">
+                                {% with duration=order.delivered_at|timesince:order.picked_up_at %}
+                                {{ duration }}
+                                {% endwith %}
+                            </div>
+                            <div class="time-bar">
+                                <div class="time-fill" style="width: 80%"></div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if order.delivered_at %}
+                        <div class="time-metric">
+                            <div class="time-label">Total Order Time</div>
+                            <div class="time-value">
+                                {% with duration=order.delivered_at|timesince:order.created_at %}
+                                {{ duration }}
+                                {% endwith %}
+                            </div>
+                            <div class="time-bar">
+                                <div class="time-fill" style="width: 100%"></div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="dashboard-card h-100">
+                <div class="card-header">
+                    <h6 class="m-0 font-weight-bold text-primary">Timeline Insights</h6>
+                </div>
+                <div class="card-body">
+                    <div class="insights">
+                        {% if order.status == 'delivered' %}
+                        <div class="insight-item success">
+                            <i class="fas fa-check-circle"></i>
+                            <div>
+                                <h6 class="title-small mb-1">Order Delivered Successfully</h6>
+                                <p class="body-small text-muted mb-0">Customer received their order on time.</p>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if order.picked_up_at and order.ready_at %}
+                        {% with wait_time=order.picked_up_at|timesince:order.ready_at %}
+                        {% if 'hour' in wait_time or '2' in wait_time %}
+                        <div class="insight-item warning">
+                            <i class="fas fa-clock"></i>
+                            <div>
+                                <h6 class="title-small mb-1">Long Pickup Wait</h6>
+                                <p class="body-small text-muted mb-0">Order waited {{ wait_time }} before pickup.</p>
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% endwith %}
+                        {% endif %}
+                        
+                        {% if order.delivered_at and order.created_at %}
+                        {% with total_time=order.delivered_at|timesince:order.created_at %}
+                        {% if 'hour' in total_time and '2' in total_time %}
+                        <div class="insight-item warning">
+                            <i class="fas fa-truck"></i>
+                            <div>
+                                <h6 class="title-small mb-1">Extended Delivery Time</h6>
+                                <p class="body-small text-muted mb-0">Total order time was {{ total_time }}.</p>
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% endwith %}
+                        {% endif %}
+                        
+                        {% if order.status == 'cancelled' %}
+                        <div class="insight-item error">
+                            <i class="fas fa-times-circle"></i>
+                            <div>
+                                <h6 class="title-small mb-1">Order Cancelled</h6>
+                                <p class="body-small text-muted mb-0">
+                                    Reason: {{ order.cancellation_reason|default:"Not specified" }}
+                                </p>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        <div class="insight-item info">
+                            <i class="fas fa-chart-line"></i>
+                            <div>
+                                <h6 class="title-small mb-1">Performance Benchmark</h6>
+                                <p class="body-small text-muted mb-0">
+                                    Average delivery time: 45 minutes<br>
+                                    Your order: 
+                                    {% if order.delivered_at %}
+                                    {% with duration=order.delivered_at|timesince:order.created_at %}
+                                    {{ duration }}
+                                    {% endwith %}
+                                    {% else %}
+                                    In progress
+                                    {% endif %}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Export Timeline Modal -->
+<div class="modal fade" id="exportTimelineModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title headline-small">Export Timeline</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="body-medium">Export the order timeline for reporting or analysis.</p>
+                <div class="mb-3">
+                    <label class="form-label label-medium">Format</label>
+                    <select class="form-select" id="exportTimelineFormat">
+                        <option value="pdf">PDF Report</option>
+                        <option value="csv">CSV Data</option>
+                        <option value="print">Print Timeline</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="exportTimeline()">Export</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<style>
+    .timeline-visual {
+        position: relative;
+        padding-left: 60px;
+    }
+    
+    .timeline-step {
+        position: relative;
+        margin-bottom: 30px;
+        padding-bottom: 30px;
+    }
+    
+    .timeline-step.last {
+        margin-bottom: 0;
+        padding-bottom: 0;
+    }
+    
+    .timeline-step-icon {
+        position: absolute;
+        left: -60px;
+        top: 0;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 18px;
+        z-index: 2;
+    }
+    
+    .timeline-step-icon.primary {
+        background-color: var(--primary);
+    }
+    
+    .timeline-step-icon.success {
+        background-color: var(--success);
+    }
+    
+    .timeline-step-icon.warning {
+        background-color: var(--warning);
+    }
+    
+    .timeline-step-icon.danger {
+        background-color: var(--error);
+    }
+    
+    .timeline-step-icon.info {
+        background-color: var(--info);
+    }
+    
+    .timeline-step-icon.secondary {
+        background-color: var(--secondary);
+    }
+    
+    .timeline-step-content {
+        background-color: var(--surface-variant);
+        border-radius: var(--border-radius);
+        padding: 1rem 1.5rem;
+        border-left: 4px solid var(--primary);
+    }
+    
+    .timeline-step-connector {
+        position: absolute;
+        left: -40px;
+        top: 40px;
+        bottom: -30px;
+        width: 2px;
+        background-color: var(--outline);
+        z-index: 1;
+    }
+    
+    .timeline-step.last .timeline-step-connector {
+        display: none;
+    }
+    
+    .timeline-step-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 0.5rem;
+    }
+    
+    .status-change-icon {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        background-color: var(--surface-variant);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .time-metrics {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+    
+    .time-metric {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .time-label {
+        font-size: 0.875rem;
+        color: var(--on-surface-variant);
+    }
+    
+    .time-value {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--primary);
+    }
+    
+    .time-bar {
+        height: 6px;
+        background-color: var(--surface-variant);
+        border-radius: 3px;
+        overflow: hidden;
+    }
+    
+    .time-fill {
+        height: 100%;
+        background-color: var(--primary);
+        border-radius: 3px;
+        transition: width 1s ease;
+    }
+    
+    .insights {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .insight-item {
+        display: flex;
+        gap: 1rem;
+        padding: 1rem;
+        border-radius: var(--border-radius);
+        background-color: var(--surface-variant);
+    }
+    
+    .insight-item.success {
+        border-left: 4px solid var(--success);
+    }
+    
+    .insight-item.warning {
+        border-left: 4px solid var(--warning);
+    }
+    
+    .insight-item.error {
+        border-left: 4px solid var(--error);
+    }
+    
+    .insight-item.info {
+        border-left: 4px solid var(--info);
+    }
+    
+    .insight-item i {
+        font-size: 1.5rem;
+        margin-top: 0.25rem;
+    }
+    
+    .insight-item.success i {
+        color: var(--success);
+    }
+    
+    .insight-item.warning i {
+        color: var(--warning);
+    }
+    
+    .insight-item.error i {
+        color: var(--error);
+    }
+    
+    .insight-item.info i {
+        color: var(--info);
+    }
+</style>
+
+<script>
+    // Initialize time bar animations
+    document.addEventListener('DOMContentLoaded', function() {
+        const timeBars = document.querySelectorAll('.time-fill');
+        timeBars.forEach(bar => {
+            const width = bar.style.width;
+            bar.style.width = '0';
+            setTimeout(() => {
+                bar.style.width = width;
+            }, 300);
+        });
+        
+        // Animate timeline connectors
+        const connectors = document.querySelectorAll('.timeline-step-connector');
+        connectors.forEach(connector => {
+            connector.style.height = '0';
+            setTimeout(() => {
+                connector.style.height = 'calc(100% + 30px)';
+            }, 500);
+        });
+    });
+    
+    function exportTimeline() {
+        const format = document.getElementById('exportTimelineFormat').value;
+        
+        if (format === 'pdf') {
+            crudHelper.showNotification('PDF export feature coming soon!', 'info');
+        } else if (format === 'csv') {
+            window.showLoading();
+            // Generate CSV download
+            const csvContent = generateTimelineCSV();
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            
+            link.setAttribute('href', url);
+            link.setAttribute('download', `timeline-{{ order.order_number }}-{{ now|date:'Y-m-d' }}.csv`);
+            link.style.visibility = 'hidden';
+            
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            window.hideLoading();
+        } else if (format === 'print') {
+            window.print();
+        }
+        
+        bootstrap.Modal.getInstance(document.getElementById('exportTimelineModal')).hide();
+    }
+    
+    function generateTimelineCSV() {
+        let csv = 'Order Timeline,Order #{{ order.order_number }}\n\n';
+        csv += 'Event,Description,Timestamp,Updated By,Notes\n';
+        
+        {% for event in timeline_events %}
+        csv += `"{{ event.event|escapejs }}","{{ event.description|escapejs }}","{{ event.time|date:'Y-m-d H:i:s' }}",`;
+        {% if event.updated_by %}
+        csv += `"{{ event.updated_by.get_full_name|default:event.updated_by.phone_number|escapejs }}",`;
+        {% else %}
+        csv += `"System",`;
+        {% endif %}
+        csv += `"{{ event.note|default:''|escapejs }}"\n`;
+        {% endfor %}
+        
+        csv += '\nStatus Updates\n';
+        csv += 'From Status,To Status,Timestamp,Updated By,Notes\n';
+        
+        {% for update in status_updates %}
+        csv += `"{{ update.get_old_status_display|escapejs }}","{{ update.get_new_status_display|escapejs }}","{{ update.created_at|date:'Y-m-d H:i:s' }}","{{ update.updated_by.get_full_name|default:update.updated_by.phone_number|escapejs }}","{{ update.note|escapejs }}"\n`;
+        {% endfor %}
+        
+        return csv;
+    }
+    
+    // Print functionality
+    function printTimeline() {
+        window.print();
+    }
+    
+    // Keyboard shortcuts
+    document.addEventListener('keydown', function(e) {
+        // Ctrl+P to print
+        if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
+            e.preventDefault();
+            printTimeline();
+        }
+        
+        // Ctrl+E to export
+        if (e.ctrlKey && e.key === 'e') {
+            e.preventDefault();
+            const modal = new bootstrap.Modal(document.getElementById('exportTimelineModal'));
+            modal.show();
+        }
+        
+        // Esc to go back
+        if (e.key === 'Escape') {
+            window.location.href = "{% url 'admin_dashboard:order-detail' order.id %}";
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,174 @@
+<!-- vendor_dashboard/templates/vendor_dashboard/profile_edit.html -->
+{% extends 'vendor_dashboard/base.html' %}
+{% load static %}
+{% block title %}My Profile - Vendor Dashboard{% endblock %}
+{% block page_title %}My Profile{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="dashboard-card">
+            <div class="card-header border-bottom">
+                <div class="d-flex align-items-center">
+                    <div class="p-3 bg-primary bg-opacity-10 rounded-circle me-3">
+                        <i class="fas fa-user-tie text-primary" style="font-size: 1.5rem;"></i>
+                    </div>
+                    <div>
+                        <h4 class="title-large mb-0">Business Profile</h4>
+                        <p class="body-medium text-muted mb-0">Update your vendor details and legal documents</p>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <form method="post" enctype="multipart/form-data" id="profileForm">
+                    {% csrf_token %}
+                    
+                    <div class="row g-4">
+                        <!-- Left Column: Business Info -->
+                        <div class="col-lg-6">
+                            <div class="mb-4">
+                                <label class="form-label title-small text-uppercase text-muted mb-2">Full Name</label>
+                                <input type="text" 
+                                       name="{{ form.names.name }}" 
+                                       value="{{ form.names.value|default:'' }}" 
+                                       class="form-control form-control-lg"
+                                       placeholder="e.g., David Kimambo">
+                                {% if form.names.errors %}
+                                    <div class="text-danger body-small mt-1">{{ form.names.errors }}</div>
+                                {% endif %}
+                            </div>
+
+                            <div class="mb-4">
+                                <label class="form-label title-small text-uppercase text-muted mb-2">Business Name</label>
+                                <input type="text" 
+                                       name="{{ form.business_name.name }}" 
+                                       value="{{ form.business_name.value|default:'' }}" 
+                                       class="form-control form-control-lg"
+                                       placeholder="e.g., Daily Groceries">
+                                {% if form.business_name.errors %}
+                                    <div class="text-danger body-small mt-1">{{ form.business_name.errors }}</div>
+                                {% endif %}
+                            </div>
+
+                            <div class="mb-4">
+                                <label class="form-label title-small text-uppercase text-muted mb-2">Business Address</label>
+                                <textarea 
+                                    name="{{ form.business_address.name }}" 
+                                    class="form-control"
+                                    rows="3"
+                                    placeholder="e.g., Mwenge Market, Dar es Salaam">{{ form.business_address.value|default:"" }}</textarea>
+                                {% if form.business_address.errors %}
+                                    <div class="text-danger body-small mt-1">{{ form.business_address.errors }}</div>
+                                {% endif %}
+                            </div>
+
+                            <div class="mb-4">
+                                <label class="form-label title-small text-uppercase text-muted mb-2">Business Description</label>
+                                <textarea 
+                                    name="{{ form.business_description.name }}" 
+                                    class="form-control"
+                                    rows="4"
+                                    placeholder="Describe your business, specialties, and service areas...">{{ form.business_description.value|default:"" }}</textarea>
+                                <small class="form-text text-muted">Keep it concise (max 500 characters)</small>
+                                {% if form.business_description.errors %}
+                                    <div class="text-danger body-small mt-1">{{ form.business_description.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Right Column: Documents & Status -->
+                        <div class="col-lg-6">
+                            <div class="mb-4">
+                                <h5 class="title-medium mb-3">
+                                    <i class="fas fa-file-contract me-2 text-primary"></i> Legal Documents
+                                </h5>
+                                
+                                <!-- Business License -->
+                                <div class="mb-4">
+                                    <label class="form-label title-small text-uppercase text-muted mb-2">Business License</label>
+                                    <input type="file" 
+                                           name="{{ form.license_document.name }}" 
+                                           class="form-control">
+                                    {% if form.instance.license_document %}
+                                        <div class="mt-2">
+                                            <a href="{{ form.instance.license_document.url }}" 
+                                               target="_blank" 
+                                               class="btn btn-sm btn-outline-primary">
+                                                <i class="fas fa-file-pdf me-1"></i> View License
+                                            </a>
+                                        </div>
+                                    {% endif %}
+                                    <small class="form-text text-muted">Accepted: PDF, JPG, PNG (Max 5MB)</small>
+                                    {% if form.license_document.errors %}
+                                        <div class="text-danger body-small mt-1">{{ form.license_document.errors }}</div>
+                                    {% endif %}
+                                </div>
+
+                                <!-- ID Document -->
+                                <div class="mb-4">
+                                    <label class="form-label title-small text-uppercase text-muted mb-2">Zanzibar Business ID</label>
+                                    <input type="file" 
+                                           name="{{ form.id_document.name }}" 
+                                           class="form-control">
+                                    {% if form.instance.id_document %}
+                                        <div class="mt-2">
+                                            <a href="{{ form.instance.id_document.url }}" 
+                                               target="_blank" 
+                                               class="btn btn-sm btn-outline-primary">
+                                                <i class="fas fa-id-card me-1"></i> View ID
+                                            </a>
+                                        </div>
+                                    {% endif %}
+                                    <small class="form-text text-muted">Valid government-issued ID required</small>
+                                    {% if form.id_document.errors %}
+                                        <div class="text-danger body-small mt-1">{{ form.id_document.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <!-- Verification Status Card -->
+                            <div class="p-4 bg-surface-variant rounded-3 border">
+                                <h6 class="title-small text-uppercase text-muted mb-2">Verification Status</h6>
+                                {% if form.instance.is_verified %}
+                                    <div class="d-flex align-items-center">
+                                        <span class="status-indicator status-active me-2"></span>
+                                        <span class="title-medium text-success">Verified</span>
+                                    </div>
+                                    <p class="body-small text-muted mt-2">
+                                        Your vendor account is fully approved and live on AI Mall.
+                                    </p>
+                                {% else %}
+                                    <div class="d-flex align-items-center">
+                                        <span class="status-indicator status-pending me-2"></span>
+                                        <span class="title-medium text-warning">Pending Review</span>
+                                    </div>
+                                    <p class="body-small text-muted mt-2">
+                                        Our team is reviewing your documents. You’ll receive a notification once approved.
+                                    </p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex flex-wrap gap-3 mt-4 pt-3 border-top">
+                        <button type="submit" class="btn btn-primary px-4 py-2">
+                            <i class="fas fa-save me-2"></i> Save Changes
+                        </button>
+                        <a href="{% url 'vendor_dashboard:dashboard' %}" class="btn btn-outline-secondary px-4 py-2">
+                            <i class="fas fa-times me-2"></i> Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('profileForm').addEventListener('submit', function() {
+    window.showLoading();
+});
+</script>
+{% endblock %}

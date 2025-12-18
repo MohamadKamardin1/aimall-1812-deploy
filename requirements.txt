@@ -1,5 +1,6 @@
 asgiref==3.10.0
 attrs==25.4.0
+branca==0.8.2
 CacheControl==0.14.3
 cachetools==6.2.1
 certifi==2025.10.5
@@ -18,6 +19,8 @@ djangorestframework==3.15.2
 djangorestframework-simplejwt==5.3.1
 drf-spectacular==0.27.2
 firebase-admin==6.5.0
+folium==0.20.0
+GDAL==3.8.4
 geographiclib==2.1
 geopy==2.4.1
 google-api-core==2.28.1
@@ -36,13 +39,18 @@ gunicorn==23.0.0
 httplib2==0.31.0
 idna==3.11
 inflection==0.5.1
+Jinja2==3.1.6
 jsonschema==4.25.1
 jsonschema-specifications==2025.9.1
+MarkupSafe==3.0.3
 msgpack==1.1.2
+numpy==2.3.5
 packaging==25.0
 pillow==10.2.0
 proto-plus==1.26.1
 protobuf==6.33.0
+psycopg2==2.9.11
+psycopg2-binary==2.9.11
 pyasn1==0.6.1
 pyasn1_modules==0.4.2
 pycparser==2.23
@@ -61,4 +69,4 @@ typing_extensions==4.15.0
 uritemplate==4.2.0
 urllib3==2.5.0
 whitenoise==6.11.0
-pygdal==$(gdal-config --version).*  
+xyzservices==2025.11.0

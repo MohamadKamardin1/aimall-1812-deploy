@@ -174,27 +174,27 @@ WSGI_APPLICATION = 'AIMall.wsgi.application'
 
 
 # Database configuration for Render
-# DATABASES = {
-#     'default': dj_database_url.config(
-#         default='sqlite:///' + str(BASE_DIR / 'db.sqlite3'),
-#         conn_max_age=600,
-#         conn_health_checks=True,
-#     )
-# }
+DATABASES = {
+    'default': dj_database_url.config(
+        default='sqlite:///' + str(BASE_DIR / 'db.sqlite3'),
+        conn_max_age=600,
+        conn_health_checks=True,
+    )
+}
 
 
 # Replace your current DATABASES section with this:
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.contrib.gis.db.backends.postgis',
-        'NAME': 'mydb',
-        'USER': 'sultan',
-        'PASSWORD': '1234',
-        'HOST': 'localhost',
-        'PORT': '5432',
-        'CONN_MAX_AGE': 600,
-    }
-}
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.contrib.gis.db.backends.postgis',
+#         'NAME': 'mydb',
+#         'USER': 'sultan',
+#         'PASSWORD': '1234',
+#         'HOST': 'localhost',
+#         'PORT': '5432',
+#         'CONN_MAX_AGE': 600,
+#     }
+# }
 
 # Add this after DATABASES configuration:
 if not DEBUG:

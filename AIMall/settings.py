@@ -185,11 +185,15 @@ WSGI_APPLICATION = 'AIMall.wsgi.application'
 
 # Replace your current DATABASES section with this:
 DATABASES = {
-    'default': dj_database_url.config(
-        default='postgresql://sultan:1234@localhost:5432/mydb',  # Fallback for local development
-        conn_max_age=600,
-        conn_health_checks=True,
-    )
+    'default': {
+        'ENGINE': 'django.contrib.gis.db.backends.postgis',
+        'NAME': 'mydb',
+        'USER': 'sultan',
+        'PASSWORD': '1234',
+        'HOST': 'localhost',
+        'PORT': '5432',
+        'CONN_MAX_AGE': 600,
+    }
 }
 
 # Add this after DATABASES configuration:

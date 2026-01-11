@@ -51,6 +51,31 @@ class CustomerLoginSerializer(serializers.Serializer):
         return attrs
 
 
+class AdminLoginSerializer(serializers.Serializer):
+    """Admin phone number and password login"""
+    phone_number = serializers.CharField(max_length=13)
+    password = serializers.CharField(write_only=True)
+    
+    def validate_phone_number(self, value):
+        if not value.startswith('+255'):
+            raise serializers.ValidationError("Phone number must start with +255")
+        return value
+    
+    def validate(self, attrs):
+        phone_number = attrs.get('phone_number')
+        password = attrs.get('password')
+        
+        user = authenticate(username=phone_number, password=password)
+        if not user:
+            raise serializers.ValidationError("Invalid phone number or password.")
+        
+        if user.user_type != 'admin' or not user.is_superuser:
+            raise serializers.ValidationError("Only admin superusers can log in through this endpoint.")
+        
+        attrs['user'] = user
+        return attrs
+
+
 class SecurityQuestionSerializer(serializers.ModelSerializer):
     class Meta:
         model = SecurityQuestion
@@ -249,6 +274,7 @@ class ProductVariantDetailSerializer(serializers.ModelSerializer):
 class ProductTemplateListSerializer(serializers.ModelSerializer):
     """Product template for catalog listing"""
     category_name = serializers.CharField(source='category.name', read_only=True)
+    category_id = serializers.CharField(source='category.id', read_only=True)
     image_url = serializers.SerializerMethodField()
     vendors_count = serializers.SerializerMethodField()
     available_units = serializers.SerializerMethodField()
@@ -259,7 +285,7 @@ class ProductTemplateListSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProductTemplate
         fields = (
-            'id', 'name', 'category_name', 'image_url', 'vendors_count',
+            'id', 'name', 'category_id', 'category_name', 'image_url', 'vendors_count',
             'description', 'available_units', 'display_price', 'display_unit', 'primary_variant'
         )
     
@@ -358,7 +384,18 @@ class ProductTemplateListSerializer(serializers.ModelSerializer):
                 'unit_symbol': getattr(primary_up.unit, 'symbol', None) if getattr(primary_up, 'unit', None) else None,
                 'selling_price': str(primary_up.selling_price),
                 'cost_price': str(primary_up.cost_price) if getattr(primary_up, 'cost_price', None) is not None else None,
-            }
+            },
+            'unit_prices': [
+                {
+                    'id': str(up.id),
+                    'unit_id': str(up.unit.id) if up.unit else None,
+                    'unit_name': getattr(up.unit, 'name', None) if getattr(up, 'unit', None) else None,
+                    'unit_symbol': getattr(up.unit, 'symbol', None) if getattr(up, 'unit', None) else None,
+                    'selling_price': str(up.selling_price),
+                    'cost_price': str(up.cost_price) if getattr(up, 'cost_price', None) is not None else None,
+                }
+                for up in primary.unit_prices.filter(is_active=True)
+            ]
         }
 
 
@@ -505,7 +542,7 @@ class CartSerializer(serializers.ModelSerializer):
         if obj.delivery_address:
             return {
                 'id': str(obj.delivery_address.id),
-                'address': obj.delivery_address.address,
+                'address': obj.delivery_address.street_address,
                 'latitude': str(obj.delivery_address.latitude),
                 'longitude': str(obj.delivery_address.longitude),
             }
@@ -527,9 +564,32 @@ class CartSerializer(serializers.ModelSerializer):
 
 class CustomerAddressSerializer(serializers.ModelSerializer):
     """Customer delivery address with coordinates"""
+    market_id = serializers.CharField(source='market.id', read_only=True)
+    market_name = serializers.CharField(source='market.name', read_only=True)
+    delivery_fee = serializers.SerializerMethodField()
+    distance_km = serializers.SerializerMethodField()
+    estimated_time = serializers.SerializerMethodField()
+
     class Meta:
         model = CustomerAddress
-        fields = ('id', 'address', 'latitude', 'longitude', 'is_default')
+        fields = (
+            'id',
+            'label', 'street_address', 'additional_notes',
+            'recipient_name', 'recipient_phone',
+            'latitude', 'longitude',
+            'is_default',
+            'market_id', 'market_name',
+            'delivery_fee', 'distance_km', 'estimated_time',
+        )
+
+    def get_delivery_fee(self, obj):
+        return float(obj.estimated_delivery_fee) if obj.estimated_delivery_fee is not None else None
+
+    def get_distance_km(self, obj):
+        return float(obj.distance_from_market) if obj.distance_from_market is not None else None
+
+    def get_estimated_time(self, obj):
+        return int(obj.estimated_delivery_time) if obj.estimated_delivery_time is not None else None
 
 
 class CustomerAddressCreateSerializer(serializers.ModelSerializer):
@@ -539,13 +599,35 @@ class CustomerAddressCreateSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = CustomerAddress
-        fields = ('label', 'street_address', 'latitude', 'longitude', 'market', 'recipient_name', 'recipient_phone', 'is_default')
+        fields = (
+            'label', 'street_address', 'additional_notes',
+            'latitude', 'longitude',
+            'market',
+            'recipient_name', 'recipient_phone',
+            'is_default',
+        )
         extra_kwargs = {
             'street_address': {'required': False, 'allow_blank': True},
+            'additional_notes': {'required': False, 'allow_blank': True},
+            'market': {'required': False, 'allow_null': True},
             'recipient_name': {'required': False, 'allow_blank': True},
             'recipient_phone': {'required': False, 'allow_blank': True},
             'is_default': {'required': False, 'default': False},
         }
+
+    def validate_latitude(self, value):
+        from decimal import Decimal, ROUND_HALF_UP
+        v = Decimal(str(value)).quantize(Decimal('0.000001'), rounding=ROUND_HALF_UP)
+        if v < Decimal('-90') or v > Decimal('90'):
+            raise serializers.ValidationError('Latitude must be between -90 and 90')
+        return v
+
+    def validate_longitude(self, value):
+        from decimal import Decimal, ROUND_HALF_UP
+        v = Decimal(str(value)).quantize(Decimal('0.000001'), rounding=ROUND_HALF_UP)
+        if v < Decimal('-180') or v > Decimal('180'):
+            raise serializers.ValidationError('Longitude must be between -180 and 180')
+        return v
 
 
 # ============================================
@@ -571,7 +653,7 @@ class OrderItemDetailSerializer(serializers.ModelSerializer):
             'vendor_id', 'vendor_name', 'vendor_phone',
             'unit_name', 'unit_symbol', 'quantity', 'unit_price',
             'addons_total', 'total_price', 'selected_addons_data',
-            'special_instructions'
+            'special_instructions', 'is_found'
         )
     
     def get_product_image(self, obj):
@@ -686,35 +768,116 @@ class OrderListSerializer(serializers.ModelSerializer):
         return obj.items.count()
 
 
+class AdminOrderListSerializer(serializers.ModelSerializer):
+    """Admin order listing with customer details"""
+    customer_name = serializers.SerializerMethodField()
+    customer_phone = serializers.SerializerMethodField()
+    order_items_count = serializers.SerializerMethodField()
+    calculated_total = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Order
+        fields = (
+            'order_number', 'total_amount', 'calculated_total', 'status', 'payment_method',
+            'customer_name', 'customer_phone', 'order_items_count', 
+            'created_at', 'scheduled_delivery_date', 'items_total', 'delivery_fee', 'service_fee'
+        )
+    
+    def get_customer_name(self, obj):
+        # Try to get customer name from Customer model
+        try:
+            customer = obj.customer.customer
+            return customer.names if customer.names else obj.customer.phone_number
+        except Customer.DoesNotExist:
+            return obj.customer.phone_number
+    
+    def get_customer_phone(self, obj):
+        return obj.customer.phone_number
+    
+    def get_order_items_count(self, obj):
+        return obj.items.count()
+    
+    def get_calculated_total(self, obj):
+        # Calculate total on the fly to ensure accuracy
+        items_total = obj.items_total or Decimal('0.00')
+        delivery_fee = obj.delivery_fee or Decimal('0.00')
+        service_fee = obj.service_fee or Decimal('0.00')
+        discount_amount = obj.discount_amount or Decimal('0.00')
+        
+        calculated_total = items_total + delivery_fee + service_fee - discount_amount
+        return float(calculated_total)
+
+
 # ============================================
 # DRIVER SERIALIZERS
 # ============================================
 
 class DriverOrderListSerializer(serializers.ModelSerializer):
-    """Order for driver delivery list"""
+    """Order for driver delivery list with sufficient info for cards"""
     customer_name = serializers.CharField(source='customer.customer.names', read_only=True)
     customer_phone = serializers.CharField(source='customer.phone_number', read_only=True)
-    customer_location = serializers.SerializerMethodField()
+    customer_address = serializers.SerializerMethodField()
+    market_location = serializers.SerializerMethodField()
+    delivery_location = serializers.SerializerMethodField()
+    distance_km = serializers.SerializerMethodField()
     items_count = serializers.SerializerMethodField()
+    items_total = serializers.SerializerMethodField()
     
     class Meta:
         model = Order
         fields = (
             'id', 'order_number', 'customer_name', 'customer_phone',
-            'customer_location', 'items_count', 'total_amount', 'status',
-            'scheduled_delivery_date', 'scheduled_delivery_time'
+            'customer_address', 'market_location', 'delivery_location',
+            'distance_km', 'items_count', 'items_total', 
+            'total_amount', 'status', 'scheduled_delivery_date', 'scheduled_delivery_time'
         )
     
-    def get_customer_location(self, obj):
+    def get_customer_address(self, obj):
+        """Build customer delivery address summary"""
         return {
-            'latitude': str(obj.delivery_address.latitude),
-            'longitude': str(obj.delivery_address.longitude),
+            'street_address': obj.delivery_street_address or 'Delivery Address',
+            'location_name': obj.delivery_location_name or 'Delivery Location',
+            'area': getattr(obj.delivery_address, 'area', '') if obj.delivery_address else '',
+            'landmark': getattr(obj.delivery_address, 'landmark', '') if obj.delivery_address else ''
         }
+    
+    def get_market_location(self, obj):
+        """Get market location for pickup"""
+        from .driver_order_helpers import get_market_location
+        return get_market_location(obj)
+    
+    def get_delivery_location(self, obj):
+        """Get delivery coordinates"""
+        from .driver_order_helpers import get_delivery_location
+        return get_delivery_location(obj)
+    
+    def get_distance_km(self, obj):
+        """Calculate distance between market and delivery point"""
+        from .driver_order_helpers import (
+            get_market_location, 
+            get_delivery_location, 
+            calculate_distance_between_points
+        )
+        
+        market = get_market_location(obj)
+        delivery = get_delivery_location(obj)
+        
+        return calculate_distance_between_points(
+            market['latitude'],
+            market['longitude'],
+            delivery['latitude'],
+            delivery['longitude']
+        )
     
     def get_items_count(self, obj):
         """Count only valid items (quantity > 0)"""
         from .driver_order_helpers import get_valid_items
         return get_valid_items(obj).count()
+
+    def get_items_total(self, obj):
+        """Sum of all item prices"""
+        from .driver_order_helpers import calculate_items_total_only
+        return float(calculate_items_total_only(obj))
 
 
 class DriverOrderDetailSerializer(serializers.ModelSerializer):
@@ -864,7 +1027,8 @@ class DriverOrderDetailSerializer(serializers.ModelSerializer):
                         {'name': addon.name, 'price': float(addon.price)}
                         for addon in item.selected_addons.all()
                     ],
-                    'special_instructions': item.special_instructions or ''
+                    'special_instructions': item.special_instructions or '',
+                    'is_found': item.is_found
                 })
             except Exception as e:
                 import logging

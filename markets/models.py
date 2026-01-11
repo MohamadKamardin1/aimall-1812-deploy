@@ -26,8 +26,8 @@ class Market(models.Model):
     # Location fields (for backward compatibility)
     location = models.CharField(max_length=255, blank=True)
     address = models.TextField(blank=True)
-    latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
-    longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    latitude = models.DecimalField(max_digits=12, decimal_places=9, null=True, blank=True)
+    longitude = models.DecimalField(max_digits=12, decimal_places=9, null=True, blank=True)
     
     # GIS Point field for map integration
     geo_location = gis_models.PointField(
@@ -67,12 +67,12 @@ class Market(models.Model):
     
     def save(self, *args, **kwargs):
         # Sync geo_location with latitude/longitude if provided
-        if self.latitude and self.longitude and not self.geo_location:
+        if self.latitude is not None and self.longitude is not None:
             from django.contrib.gis.geos import Point
-            self.geo_location = Point(float(self.longitude), float(self.latitude))
+            self.geo_location = Point(float(self.longitude), float(self.latitude), srid=4326)
         
-        # If geo_location exists, update latitude/longitude
-        if self.geo_location:
+        # If geo_location exists but lat/long are None, update them
+        elif self.geo_location:
             self.longitude = self.geo_location.x
             self.latitude = self.geo_location.y
         

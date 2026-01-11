@@ -122,6 +122,9 @@ class OrderItem(models.Model):
     # Special instructions
     special_instructions = models.TextField(blank=True)
     
+    # Checklist status (for driver)
+    is_found = models.BooleanField(default=True, help_text="Checked by driver during market collection")
+    
     created_at = models.DateTimeField(auto_now_add=True)
     
     class Meta:
@@ -135,7 +138,7 @@ class OrderItem(models.Model):
         self.total_price = (self.unit_price * self.quantity) + self.addons_total
         super().save(*args, **kwargs)
 
-class ordertatusUpdate(models.Model):
+class OrderStatusUpdate(models.Model):
     """Track order status changes"""
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='status_updates')

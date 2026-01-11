@@ -1,5 +1,5 @@
 from rest_framework import status, permissions
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, authentication_classes
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import login
@@ -18,6 +18,7 @@ from .serializers import (
 
 @api_view(['GET'])
 @permission_classes([permissions.AllowAny])
+@authentication_classes([])
 def security_questions(request):
     """Get all active security questions"""
     questions = SecurityQuestion.objects.filter(is_active=True)
@@ -26,6 +27,7 @@ def security_questions(request):
 
 @api_view(['POST'])
 @permission_classes([permissions.AllowAny])
+@authentication_classes([])
 def customer_register(request):
     with transaction.atomic():
         serializer = CustomerRegistrationSerializer(data=request.data)
@@ -47,6 +49,7 @@ def customer_register(request):
 
 @api_view(['POST'])
 @permission_classes([permissions.AllowAny])
+@authentication_classes([])
 def vendor_register(request):
     with transaction.atomic():
         serializer = VendorRegistrationSerializer(data=request.data)
@@ -69,6 +72,7 @@ def vendor_register(request):
 # accounts/views.py
 @api_view(['POST'])
 @permission_classes([permissions.AllowAny])
+@authentication_classes([])
 def user_login(request):
     serializer = LoginSerializer(data=request.data)
     if serializer.is_valid():

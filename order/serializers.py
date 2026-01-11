@@ -1,6 +1,6 @@
 # order/serializers.py
 from rest_framework import serializers
-from .models import Order, OrderItem, ordertatusUpdate, Cart, CartItem
+from .models import Order, OrderItem, OrderStatusUpdate, Cart, CartItem
 from location.models import CustomerAddress, DeliveryTimeSlot
 from products.models import ProductVariant, MeasurementUnit, ProductAddon
 
@@ -17,7 +17,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
                  'unit_price', 'total_price', 'selected_addons', 'addons_total',
                  'special_instructions']
 
-class ordererializer(serializers.ModelSerializer):
+class OrderSerializer(serializers.ModelSerializer):
     items = OrderItemSerializer(many=True, read_only=True)
     customer_name = serializers.CharField(source='customer.customer.names', read_only=True)
     customer_phone = serializers.CharField(source='customer.phone_number', read_only=True)
@@ -36,7 +36,7 @@ class ordererializer(serializers.ModelSerializer):
         read_only_fields = ['order_number', 'created_at', 'confirmed_at', 'assigned_at',
                            'picked_up_at', 'delivered_at', 'cancelled_at']
 
-class Createordererializer(serializers.ModelSerializer):
+class CreateOrderSerializer(serializers.ModelSerializer):
     class Meta:
         model = Order
         fields = ['delivery_address', 'delivery_time_slot', 'payment_method']
@@ -107,10 +107,10 @@ class AddToCartSerializer(serializers.Serializer):
     )
     special_instructions = serializers.CharField(required=False, allow_blank=True)
 
-class ordertatusUpdateSerializer(serializers.ModelSerializer):
+class OrderStatusUpdateSerializer(serializers.ModelSerializer):
     updated_by_name = serializers.CharField(source='updated_by.get_full_name', read_only=True)
     
     class Meta:
-        model = ordertatusUpdate
+        model = OrderStatusUpdate
         fields = ['id', 'order', 'old_status', 'new_status', 'updated_by',
                  'updated_by_name', 'note', 'created_at']

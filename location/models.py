@@ -418,8 +418,8 @@ class CustomerAddress(models.Model):
     region = models.CharField(max_length=255, blank=True, help_text="Region")
     
     # Location coordinates
-    latitude = models.DecimalField(max_digits=9, decimal_places=6, null=False, default=0.0)
-    longitude = models.DecimalField(max_digits=9, decimal_places=6, null=False, default=0.0)
+    latitude = models.DecimalField(max_digits=12, decimal_places=9, null=False, default=0.0)
+    longitude = models.DecimalField(max_digits=12, decimal_places=9, null=False, default=0.0)
     
     # GIS point
     location_point = gis_models.PointField(
@@ -496,7 +496,7 @@ class CustomerAddress(models.Model):
             ).exclude(id=self.id).update(is_default=False)
         
         # Create location point from coordinates
-        if self.latitude and self.longitude:
+        if self.latitude is not None and self.longitude is not None:
             self.location_point = Point(float(self.longitude), float(self.latitude), srid=4326)
         
         # Auto-detect delivery zone

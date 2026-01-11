@@ -10,12 +10,12 @@ from django.utils import timezone
 from django.db import transaction
 from datetime import datetime, timedelta
 from decimal import Decimal
-from .models import Order, OrderItem, ordertatusUpdate, Cart, CartItem
+from .models import Order, OrderItem, OrderStatusUpdate, Cart, CartItem
 from location.models import CustomerAddress, DeliveryTimeSlot
 from products.models import ProductVariant, MeasurementUnit, ProductAddon, UnitPrice
 from .serializers import (
-    ordererializer, Createordererializer, CartSerializer,
-    CartItemSerializer, AddToCartSerializer, ordertatusUpdateSerializer
+    OrderSerializer, CreateOrderSerializer, CartSerializer,
+    CartItemSerializer, AddToCartSerializer, OrderStatusUpdateSerializer
 )
 
 # ============ CART MANAGEMENT ============
@@ -267,7 +267,7 @@ def create_order(request):
             cart.save()
             
             # Create initial status update
-            ordertatusUpdate.objects.create(
+            OrderStatusUpdate.objects.create(
                 order=order,
                 old_status='pending',
                 new_status='pending',
@@ -276,7 +276,7 @@ def create_order(request):
             )
             
             return Response(
-                ordererializer(order).data,
+                OrderSerializer(order).data,
                 status=status.HTTP_201_CREATED
             )
             
@@ -299,7 +299,7 @@ def order_list(request):
         'delivery_address', 'delivery_time_slot', 'driver'
     ).prefetch_related('items').order_by('-created_at')
     
-    serializer = ordererializer(order, many=True)
+    serializer = OrderSerializer(order, many=True)
     return Response(serializer.data)
 
 @api_view(['GET'])
@@ -308,7 +308,7 @@ def order_detail(request, order_id):
     """Get order details"""
     try:
         order = Order.objects.get(id=order_id, customer=request.user)
-        serializer = ordererializer(order)
+        serializer = OrderSerializer(order)
         return Response(serializer.data)
     except Order.DoesNotExist:
         return Response(
@@ -335,7 +335,7 @@ def cancel_order(request, order_id):
         order.save()
         
         # Create status update
-        ordertatusUpdate.objects.create(
+        OrderStatusUpdate.objects.create(
             order=order,
             old_status=order.status,
             new_status='cancelled',
@@ -368,7 +368,7 @@ def driver_order(request):
     if status_filter:
         order = order.filter(status=status_filter)
     
-    serializer = ordererializer(order, many=True)
+    serializer = OrderSerializer(order, many=True)
     return Response(serializer.data)
 
 @api_view(['POST'])
@@ -420,7 +420,7 @@ def update_order_status(request, order_id):
         order.save()
         
         # Create status update
-        ordertatusUpdate.objects.create(
+        OrderStatusUpdate.objects.create(
             order=order,
             old_status=old_status,
             new_status=new_status,

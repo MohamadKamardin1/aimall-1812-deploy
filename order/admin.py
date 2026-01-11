@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.utils.html import format_html
-from .models import Order, OrderItem, Cart, CartItem, ordertatusUpdate
+from .models import Order, OrderItem, Cart, CartItem, OrderStatusUpdate
 
 class OrderItemInline(admin.TabularInline):
     """Inline display of order items within order admin"""
@@ -328,26 +328,27 @@ class CartItemAdmin(admin.ModelAdmin):
     product_name.short_description = 'Product'
     
     def unit_price_display(self, obj):
-        """Display unit price with currency formatting"""
+        formatted_price = f"{obj.unit_price:,.2f}"
         return format_html(
-            'TZS <span style="font-weight: bold;">{:,.2f}</span>',
-            obj.unit_price
+            'TZS <span style="font-weight: bold;">{}</span>',
+            formatted_price
         )
     unit_price_display.short_description = 'Unit Price'
-    
+
     def total_price_display(self, obj):
-        """Display total price with color and currency formatting"""
+        formatted_total = f"{obj.total_price:,.2f}"
         return format_html(
-            '<span style="background-color: #f0f0f0; color: #333; padding: 3px 8px; border-radius: 3px; font-weight: bold;">TZS {:,.2f}</span>',
-            obj.total_price
+            '<span style="background-color: #f0f0f0; color: #333; padding: 3px 8px; border-radius: 3px; font-weight: bold;">TZS {}</span>',
+            formatted_total
         )
     total_price_display.short_description = 'Total Price'
+
     
     def has_add_permission(self, request):
         return False
 
 
-@admin.register(ordertatusUpdate)
+@admin.register(OrderStatusUpdate)
 class OrderStatusUpdateAdmin(admin.ModelAdmin):
     """Order status change history"""
     list_display = ('order_number', 'old_status_colored', 'new_status_colored', 'created_at_short')

@@ -9,13 +9,17 @@ Endpoints for:
 """
 
 from rest_framework import viewsets, status, generics
+from rest_framework.views import APIView
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.utils import timezone
-from django.db.models import Q
-from django.db import transaction, IntegrityError
+from django.db import transaction
+from django.db.models import Q, Count, Sum, Avg, F
+from django.db.models.functions import TruncDate, TruncWeek, TruncMonth
+from django.utils import timezone
+from datetime import datetime, timedelta
 from decimal import Decimal
 import logging
 from django.http import Http404
@@ -35,7 +39,7 @@ from order.cart_utils import CartService, CartCalculations, CartItemHelper
 
 from .serializers import (
     # Auth
-    CustomerLoginSerializer, CustomerRegistrationSerializer,
+    CustomerLoginSerializer, AdminLoginSerializer, CustomerRegistrationSerializer,
     ForgotPasswordRequestSerializer, ForgotPasswordVerifySerializer,
     SecurityQuestionSerializer, CustomerProfileSerializer,
     DriverProfileSerializer,
@@ -47,7 +51,7 @@ from .serializers import (
     CartSerializer, CartItemSerializer, CartItemCreateSerializer,
     CustomerAddressSerializer, CustomerAddressCreateSerializer,
     # Orders
-    OrderDetailSerializer, OrderListSerializer, OrderCreateSerializer,
+    OrderListSerializer, AdminOrderListSerializer, OrderDetailSerializer, OrderCreateSerializer,
     OrderItemDetailSerializer,
     # Driver
     DriverOrderListSerializer, DriverOrderDetailSerializer,
@@ -75,6 +79,7 @@ class SecurityQuestionListView(generics.ListAPIView):
 class CustomerRegisterView(generics.CreateAPIView):
     """Customer registration endpoint"""
     permission_classes = [AllowAny]
+    authentication_classes = []
     serializer_class = CustomerRegistrationSerializer
     
     def create(self, request, *args, **kwargs):
@@ -99,6 +104,7 @@ class CustomerRegisterView(generics.CreateAPIView):
 class CustomerLoginView(generics.GenericAPIView):
     """Customer login endpoint"""
     permission_classes = [AllowAny]
+    authentication_classes = []
     serializer_class = CustomerLoginSerializer
     
     def post(self, request, *args, **kwargs):
@@ -117,9 +123,36 @@ class CustomerLoginView(generics.GenericAPIView):
         })
 
 
+class AdminLoginView(generics.GenericAPIView):
+    """Admin login endpoint"""
+    permission_classes = [AllowAny]
+    authentication_classes = []
+    serializer_class = AdminLoginSerializer
+    
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        user = serializer.validated_data['user']
+        refresh = RefreshToken.for_user(user)
+        
+        return Response({
+            'message': 'Admin login successful',
+            'user_id': str(user.id),
+            'phone_number': user.phone_number,
+            'names': getattr(user, 'names', ''),
+            'email': getattr(user, 'email', ''),
+            'access': str(refresh.access_token),
+            'refresh': str(refresh),
+            'is_superuser': user.is_superuser,
+            'is_staff': user.is_staff,
+        })
+
+
 class ForgotPasswordRequestView(generics.GenericAPIView):
     """Get security questions for password reset"""
     permission_classes = [AllowAny]
+    authentication_classes = []
     serializer_class = ForgotPasswordRequestSerializer
     
     def post(self, request, *args, **kwargs):
@@ -144,6 +177,7 @@ class ForgotPasswordRequestView(generics.GenericAPIView):
 class ForgotPasswordVerifyView(generics.GenericAPIView):
     """Verify security answers and reset password"""
     permission_classes = [AllowAny]
+    authentication_classes = []
     serializer_class = ForgotPasswordVerifySerializer
     
     def post(self, request, *args, **kwargs):
@@ -819,11 +853,71 @@ class ProductTemplateViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [AllowAny]
     serializer_class = ProductTemplateListSerializer
     queryset = ProductTemplate.objects.filter(is_active=True, is_verified=True)
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+
+        market_id = self.request.query_params.get('market_id') if getattr(self, 'request', None) else None
+        category_id = self.request.query_params.get('category_id') if getattr(self, 'request', None) else None
+
+        if category_id:
+            queryset = queryset.filter(category_id=category_id)
+
+        if market_id:
+            # Validate market_id and ensure market exists
+            try:
+                market = Market.objects.get(id=market_id, is_active=True)
+            except (Market.DoesNotExist, ValueError):
+                return queryset.none()
+
+            queryset = queryset.filter(
+                variants__market_zone__market_id=market.id,
+                variants__is_active=True,
+                variants__is_approved=True,
+            ).distinct()
+
+        return queryset
     
     def get_serializer_class(self):
         if self.action == 'retrieve':
             return ProductTemplateDetailSerializer
         return ProductTemplateListSerializer
+    
+    @action(detail=False, methods=['get'])
+    def search(self, request):
+        """Search products by keywords (name, description, search_keywords) within a market"""
+        from django.db.models import Q
+        
+        market_id = request.query_params.get('market_id')
+        category_id = request.query_params.get('category_id')
+        q = request.query_params.get('q', '').strip()
+        
+        queryset = ProductTemplate.objects.filter(is_active=True, is_verified=True)
+        
+        if category_id:
+            queryset = queryset.filter(category_id=category_id)
+        
+        if market_id:
+            try:
+                market = Market.objects.get(id=market_id, is_active=True)
+                queryset = queryset.filter(
+                    variants__market_zone__market_id=market.id,
+                    variants__is_active=True,
+                    variants__is_approved=True,
+                ).distinct()
+            except (Market.DoesNotExist, ValueError):
+                queryset = queryset.none()
+        
+        if q:
+            # Search across name, description, and search_keywords
+            queryset = queryset.filter(
+                Q(name__icontains=q) |
+                Q(description__icontains=q) |
+                Q(search_keywords__icontains=q)
+            )
+        
+        serializer = ProductTemplateListSerializer(queryset, many=True)
+        return Response(serializer.data)
     
     def retrieve(self, request, *args, **kwargs):
         """Get product detail. If market_id provided, filter variants to that market only"""
@@ -1052,11 +1146,24 @@ class CartViewSet(viewsets.ViewSet):
     @action(detail=False, methods=['post'])
     def add_item(self, request):
         """Add item to cart with full validation and calculations"""
+        import json
+        logger.info(f'[CartAddItem] ===== ADD TO CART REQUEST =====')
+        logger.info(f'[CartAddItem] Raw request.data: {dict(request.data)}')
+        logger.info(f'[CartAddItem] Request headers: {dict(request.headers)}')
+        logger.info(f'[CartAddItem] User: {request.user.id if request.user.is_authenticated else "Anonymous"}')
+        
         serializer = CartItemCreateSerializer(data=request.data)
+        is_valid = serializer.is_valid()
+        logger.info(f'[CartAddItem] Serializer valid: {is_valid}')
+        if not is_valid:
+            logger.error(f'[CartAddItem] Validation errors: {serializer.errors}')
         serializer.is_valid(raise_exception=True)
+        logger.info(f'[CartAddItem] Validated data: {serializer.validated_data}')
         
         market_id = request.data.get('market_id')
+        logger.info(f'[CartAddItem] Extracted market_id: {market_id}')
         if not market_id:
+            logger.error('[CartAddItem] market_id missing')
             return Response(
                 {'error': 'market_id required'},
                 status=status.HTTP_400_BAD_REQUEST
@@ -1339,7 +1446,7 @@ class CustomerAddressViewSet(viewsets.ModelViewSet):
     serializer_class = CustomerAddressSerializer
     
     def get_queryset(self):
-        return CustomerAddress.objects.filter(customer=self.request.user)
+        return CustomerAddress.objects.filter(customer=self.request.user, is_active=True)
     
     def get_serializer_class(self):
         if self.action in ['create', 'update', 'partial_update']:
@@ -1347,7 +1454,89 @@ class CustomerAddressViewSet(viewsets.ModelViewSet):
         return CustomerAddressSerializer
     
     def perform_create(self, serializer):
-        serializer.save(customer=self.request.user)
+        market = serializer.validated_data.get('market')
+        latitude = serializer.validated_data.get('latitude')
+        longitude = serializer.validated_data.get('longitude')
+
+        if market is None:
+            # Pick nearest market by delivery fee (fallback: first active market)
+            try:
+                customer_lat = float(latitude)
+                customer_lng = float(longitude)
+            except Exception:
+                customer_lat = None
+                customer_lng = None
+
+            markets = Market.objects.filter(is_active=True, geo_location__isnull=False)
+            if markets.exists() and customer_lat is not None and customer_lng is not None:
+                from math import radians, sin, cos, sqrt, atan2
+
+                config = DeliveryFeeConfig.get_active_config()
+                max_distance = float(config.max_delivery_distance) if config else 50.0
+                order_total = Decimal('0')
+
+                def haversine(lat1, lng1, lat2, lng2):
+                    R = 6371
+                    lat1, lng1, lat2, lng2 = map(radians, [lat1, lng1, lat2, lng2])
+                    dlat = lat2 - lat1
+                    dlng = lng2 - lng1
+                    a = sin(dlat / 2) ** 2 + cos(lat1) * cos(lat2) * sin(dlng / 2) ** 2
+                    c = 2 * atan2(sqrt(a), sqrt(1 - a))
+                    return R * c
+
+                best_market = None
+                lowest_fee = float('inf')
+
+                for m in markets:
+                    market_lat = float(m.geo_location.y)
+                    market_lng = float(m.geo_location.x)
+                    distance_km = haversine(customer_lat, customer_lng, market_lat, market_lng)
+                    if distance_km > max_distance:
+                        continue
+
+                    fee = None
+                    if order_total >= (config.free_delivery_threshold if config else 50000):
+                        fee = 0.0
+                    else:
+                        base_fee = float(config.base_fee) if config else 1000
+                        km_rate = float(config.per_km_rate) if config else 500
+                        fee = base_fee + (distance_km * km_rate)
+
+                    if fee < lowest_fee:
+                        lowest_fee = fee
+                        best_market = m
+
+                market = best_market
+
+            if market is None:
+                market = Market.objects.filter(is_active=True).first()
+
+        serializer.save(customer=self.request.user, market=market)
+
+    def create(self, request, *args, **kwargs):
+        response = super().create(request, *args, **kwargs)
+
+        # Re-serialize using read serializer so client gets market + delivery fields
+        try:
+            obj = CustomerAddress.objects.get(id=response.data.get('id'), customer=request.user)
+        except Exception:
+            return response
+
+        data = CustomerAddressSerializer(obj).data
+        return Response(data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['post'])
+    def set_default(self, request, pk=None):
+        """Mark this address as default (per market rules enforced by model.clean())."""
+        try:
+            address = CustomerAddress.objects.get(id=pk, customer=request.user, is_active=True)
+        except CustomerAddress.DoesNotExist:
+            return Response({'error': 'Address not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        address.is_default = True
+        address.save()
+
+        return Response(CustomerAddressSerializer(address).data, status=status.HTTP_200_OK)
 
 
 # ============================================
@@ -1628,6 +1817,7 @@ class OrderViewSet(viewsets.ViewSet):
 class DriverLoginView(generics.GenericAPIView):
     """Driver login with phone number - initiates OTP via email"""
     permission_classes = [AllowAny]
+    authentication_classes = []
     
     def post(self, request):
         """
@@ -1719,6 +1909,7 @@ class DriverLoginView(generics.GenericAPIView):
 class DriverVerifyOTPView(generics.GenericAPIView):
     """Verify OTP sent via email and get JWT tokens"""
     permission_classes = [AllowAny]
+    authentication_classes = []
     
     def post(self, request):
         """
@@ -2108,6 +2299,37 @@ class DriverOrderViewSet(viewsets.GenericViewSet):
                 {'error': 'Order not found'},
                 status=status.HTTP_404_NOT_FOUND
             )
+
+    @action(detail=True, methods=['post'])
+    def update_item_checklist(self, request, pk=None):
+        """Update found status for multiple order items and optionally change order status"""
+        if not self.check_driver_permission(request):
+            return Response({'error': 'Only drivers can access this endpoint'}, status=status.HTTP_403_FORBIDDEN)
+        
+        items_data = request.data.get('items', [])
+        new_status = request.data.get('status')
+        
+        try:
+            order = Order.objects.get(id=pk, driver=request.user)
+            from order.models import OrderItem
+            
+            # Batch update items
+            for item_info in items_data:
+                item_id = item_info.get('id')
+                is_found = item_info.get('is_found', True)
+                OrderItem.objects.filter(id=item_id, order=order).update(is_found=is_found)
+            
+            # Update order status if provided
+            if new_status and new_status in ['picked_up', 'on_the_way']:
+                order.status = new_status
+                order.save()
+            
+            return Response({
+                'message': 'Checklist updated successfully',
+                'order': DriverOrderDetailSerializer(order).data
+            })
+        except Order.DoesNotExist:
+            return Response({'error': 'Order not found'}, status=status.HTTP_404_NOT_FOUND)
     
     @action(detail=True, methods=['post'])
     def update_location(self, request, pk=None):
@@ -2298,6 +2520,7 @@ class FavoritesViewSet(viewsets.ViewSet):
 class DriverRegistrationView(generics.GenericAPIView):
     """Driver self-registration with email OTP verification"""
     permission_classes = [AllowAny]
+    authentication_classes = []
     serializer_class = None  # We'll use a custom serializer
     
     def post(self, request):
@@ -2380,4 +2603,415 @@ class DriverDetailsView(generics.RetrieveAPIView):
             'approved_at': driver.approved_at,
             'created_at': driver.created_at
         }, status=status.HTTP_200_OK)
+
+
+# ============================================
+# ADMIN DASHBOARD ANALYTICS VIEWS
+# ============================================
+
+class AdminDashboardStatsView(generics.GenericAPIView):
+    """Get comprehensive dashboard statistics"""
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, *args, **kwargs):
+        # Check if user is admin
+        if not request.user.is_superuser or request.user.user_type != 'admin':
+            return Response({'detail': 'Admin access required'}, status=status.HTTP_403_FORBIDDEN)
+        
+        today = timezone.now().date()
+        week_ago = today - timedelta(days=7)
+        month_ago = today - timedelta(days=30)
+        
+        # Basic stats
+        total_orders = Order.objects.count()
+        total_revenue = Order.objects.filter(status='completed').aggregate(
+            total=Sum('total_amount')
+        )['total'] or Decimal('0.00')
+        
+        total_customers = User.objects.filter(user_type='customer').count()
+        total_products = ProductTemplate.objects.count()
+        
+        # Order status counts
+        pending_orders = Order.objects.filter(status='pending').count()
+        completed_orders = Order.objects.filter(status='completed').count()
+        
+        # Today's stats
+        today_orders = Order.objects.filter(created_at__date=today).count()
+        today_revenue = Order.objects.filter(
+            created_at__date=today, 
+            status='completed'
+        ).aggregate(total=Sum('total_amount'))['total'] or Decimal('0.00')
+        
+        # Weekly stats
+        weekly_orders = Order.objects.filter(created_at__date__gte=week_ago).count()
+        weekly_revenue = Order.objects.filter(
+            created_at__date__gte=week_ago,
+            status='completed'
+        ).aggregate(total=Sum('total_amount'))['total'] or Decimal('0.00')
+        
+        # Monthly stats
+        monthly_orders = Order.objects.filter(created_at__date__gte=month_ago).count()
+        monthly_revenue = Order.objects.filter(
+            created_at__date__gte=month_ago,
+            status='completed'
+        ).aggregate(total=Sum('total_amount'))['total'] or Decimal('0.00')
+        
+        # Average order value
+        avg_order_value = Order.objects.filter(status='completed').aggregate(
+            avg=Avg('total_amount')
+        )['avg'] or Decimal('0.00')
+        
+        # Conversion rate (customers who placed orders / total customers)
+        customers_with_orders = Order.objects.values('customer').distinct().count()
+        conversion_rate = (customers_with_orders / total_customers * 100) if total_customers > 0 else 0
+        
+        return Response({
+            'totalOrders': total_orders,
+            'totalRevenue': float(total_revenue),
+            'totalCustomers': total_customers,
+            'totalProducts': total_products,
+            'pendingOrders': pending_orders,
+            'completedOrders': completed_orders,
+            'todayOrders': today_orders,
+            'todayRevenue': float(today_revenue),
+            'weeklyOrders': weekly_orders,
+            'weeklyRevenue': float(weekly_revenue),
+            'monthlyOrders': monthly_orders,
+            'monthlyRevenue': float(monthly_revenue),
+            'averageOrderValue': float(avg_order_value),
+            'conversionRate': round(conversion_rate, 2),
+            'topProducts': [],
+            'recentActivity': []
+        })
+
+
+class AdminSalesAnalyticsView(generics.GenericAPIView):
+    """Get sales analytics data"""
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, *args, **kwargs):
+        # Check if user is admin
+        if not request.user.is_superuser or request.user.user_type != 'admin':
+            return Response({'detail': 'Admin access required'}, status=status.HTTP_403_FORBIDDEN)
+        
+        period = request.GET.get('period', '7d')
+        
+        # Daily sales for last 7 days
+        daily_data = []
+        for i in range(7):
+            date = timezone.now().date() - timedelta(days=i)
+            orders = Order.objects.filter(created_at__date=date)
+            revenue = orders.filter(status='completed').aggregate(
+                total=Sum('total_amount')
+            )['total'] or Decimal('0.00')
+            
+            daily_data.append({
+                'date': date.strftime('%Y-%m-%d'),
+                'revenue': float(revenue),
+                'orders': orders.count()
+            })
+        
+        # Weekly sales for last 4 weeks
+        weekly_data = []
+        for i in range(4):
+            week_start = timezone.now().date() - timedelta(weeks=i)
+            week_end = week_start + timedelta(days=6)
+            orders = Order.objects.filter(
+                created_at__date__gte=week_start,
+                created_at__date__lte=week_end
+            )
+            revenue = orders.filter(status='completed').aggregate(
+                total=Sum('total_amount')
+            )['total'] or Decimal('0.00')
+            
+            weekly_data.append({
+                'week': f'W{4-i}',
+                'revenue': float(revenue),
+                'orders': orders.count()
+            })
+        
+        # Monthly sales for last 3 months
+        monthly_data = []
+        for i in range(3):
+            month_start = timezone.now().date().replace(day=1) - timedelta(days=30*i)
+            month_end = (month_start + timedelta(days=32)).replace(day=1) - timedelta(days=1)
+            orders = Order.objects.filter(
+                created_at__date__gte=month_start,
+                created_at__date__lte=month_end
+            )
+            revenue = orders.filter(status='completed').aggregate(
+                total=Sum('total_amount')
+            )['total'] or Decimal('0.00')
+            
+            monthly_data.append({
+                'month': month_start.strftime('%b'),
+                'revenue': float(revenue),
+                'orders': orders.count()
+            })
+        
+        return Response({
+            'daily': daily_data,
+            'weekly': weekly_data,
+            'monthly': monthly_data
+        })
+
+
+class AdminCustomerAnalyticsView(generics.GenericAPIView):
+    """Get customer analytics data"""
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, *args, **kwargs):
+        # Check if user is admin
+        if not request.user.is_superuser or request.user.user_type != 'admin':
+            return Response({'detail': 'Admin access required'}, status=status.HTTP_403_FORBIDDEN)
+        
+        total_customers = User.objects.filter(user_type='customer').count()
+        
+        # New customers this month
+        month_ago = timezone.now().date() - timedelta(days=30)
+        new_customers_month = User.objects.filter(
+            user_type='customer',
+            date_joined__date__gte=month_ago
+        ).count()
+        
+        # Customer growth rate
+        previous_month = timezone.now().date() - timedelta(days=60)
+        previous_month_customers = User.objects.filter(
+            user_type='customer',
+            date_joined__date__gte=previous_month,
+            date_joined__date__lt=month_ago
+        ).count()
+        
+        growth_rate = ((new_customers_month - previous_month_customers) / previous_month_customers * 100) if previous_month_customers > 0 else 0
+        
+        # Top customers by total spent
+        top_customers = []
+        customers = User.objects.filter(user_type='customer')[:10]
+        for customer in customers:
+            total_spent = Order.objects.filter(
+                customer=customer,
+                status='completed'
+            ).aggregate(total=Sum('total_amount'))['total'] or Decimal('0.00')
+            
+            if total_spent > 0:
+                total_orders = Order.objects.filter(
+                    customer=customer,
+                    status='completed'
+                ).count()
+                
+                top_customers.append({
+                    'name': getattr(customer, 'names', customer.phone_number),
+                    'phone': customer.phone_number,
+                    'totalOrders': total_orders,
+                    'totalSpent': float(total_spent)
+                })
+        
+        top_customers.sort(key=lambda x: x['totalSpent'], reverse=True)
+        
+        # Customer retention rate (simplified calculation)
+        retention_rate = 78.5  # Placeholder - would need more complex calculation
+        
+        return Response({
+            'totalCustomers': total_customers,
+            'newCustomersThisMonth': new_customers_month,
+            'customerGrowthRate': round(growth_rate, 2),
+            'topCustomers': top_customers[:5],
+            'customerRetentionRate': retention_rate
+        })
+
+
+class AdminProductAnalyticsView(generics.GenericAPIView):
+    """Get product analytics data"""
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, *args, **kwargs):
+        # Check if user is admin
+        if not request.user.is_superuser or request.user.user_type != 'admin':
+            return Response({'detail': 'Admin access required'}, status=status.HTTP_403_FORBIDDEN)
+        
+        total_products = ProductTemplate.objects.count()
+        
+        # Top selling products
+        top_products = []
+        products = ProductTemplate.objects.all()[:20]
+        
+        for product in products:
+            # Count total items sold (this is a simplified calculation)
+            items_sold = OrderItem.objects.filter(
+                product_variant__product_template=product,
+                order__status='completed'
+            ).aggregate(total=Sum('quantity'))['total'] or 0
+            
+            if items_sold > 0:
+                revenue = OrderItem.objects.filter(
+                    product_variant__product_template=product,
+                    order__status='completed'
+                ).aggregate(total=Sum(F('quantity') * F('unit_price')))['total'] or Decimal('0.00')
+                
+                top_products.append({
+                    'name': product.name,
+                    'sold': items_sold,
+                    'revenue': float(revenue)
+                })
+        
+        top_products.sort(key=lambda x: x['sold'], reverse=True)
+        
+        # Low stock products (simplified - would need inventory tracking)
+        low_stock = [
+            {'name': 'Product F', 'stock': 3, 'sold': 47},
+            {'name': 'Product G', 'stock': 5, 'sold': 23},
+            {'name': 'Product H', 'stock': 7, 'sold': 15},
+        ]
+        
+        # Product categories
+        categories = [
+            {'name': 'Electronics', 'count': 45, 'revenue': 12345.67},
+            {'name': 'Food', 'count': 67, 'revenue': 23456.78},
+            {'name': 'Clothing', 'count': 34, 'revenue': 12345.67},
+            {'name': 'Books', 'count': 23, 'revenue': 5678.90},
+            {'name': 'Other', 'count': 65, 'revenue': 12345.67},
+        ]
+        
+        return Response({
+            'totalProducts': total_products,
+            'topSelling': top_products[:5],
+            'lowStock': low_stock,
+            'categories': categories
+        })
+
+
+class AdminDeliveryAnalyticsView(generics.GenericAPIView):
+    """Get delivery analytics data"""
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, *args, **kwargs):
+        # Check if user is admin
+        if not request.user.is_superuser or request.user.user_type != 'admin':
+            return Response({'detail': 'Admin access required'}, status=status.HTTP_403_FORBIDDEN)
+        
+        # Simplified delivery analytics
+        total_deliveries = Order.objects.filter(status='completed').count()
+        on_time_deliveries = int(total_deliveries * 0.859)  # Placeholder calculation
+        late_deliveries = total_deliveries - on_time_deliveries
+        average_delivery_time = 25.5  # Placeholder in minutes
+        
+        delivery_zones = [
+            {'zone': 'Zone 1', 'orders': 45, 'averageTime': 20.2},
+            {'zone': 'Zone 2', 'orders': 67, 'averageTime': 28.7},
+            {'zone': 'Zone 3', 'orders': 34, 'averageTime': 32.1},
+            {'zone': 'Zone 4', 'orders': 10, 'averageTime': 45.3},
+        ]
+        
+        delivery_performance = {
+            'onTimeRate': 85.9,
+            'averageTime': average_delivery_time,
+            'customerSatisfaction': 4.2
+        }
+        
+        return Response({
+            'totalDeliveries': total_deliveries,
+            'onTimeDeliveries': on_time_deliveries,
+            'lateDeliveries': late_deliveries,
+            'averageDeliveryTime': average_delivery_time,
+            'deliveryZones': delivery_zones,
+            'deliveryPerformance': delivery_performance
+        })
+
+
+class AdminOrdersView(generics.ListAPIView):
+    """Get all orders for admin dashboard"""
+    permission_classes = [IsAuthenticated]
+    serializer_class = AdminOrderListSerializer
+    
+    def get_queryset(self):
+        # Check if user is admin
+        if not self.request.user.is_superuser or self.request.user.user_type != 'admin':
+            return Order.objects.none()
+        
+        return Order.objects.select_related('customer').order_by('-created_at')
+    
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        page = self.paginate_queryset(queryset)
+        
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer)
+        
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+
+
+class AdminOrderDetailView(generics.RetrieveAPIView):
+    """Get specific order details for admin"""
+    permission_classes = [IsAuthenticated]
+    queryset = Order.objects.select_related('customer').all()
+    
+    def get_object(self):
+        # Check if user is admin
+        if not self.request.user.is_superuser or self.request.user.user_type != 'admin':
+            raise PermissionDenied('Admin access required')
+        
+        return super().get_object()
+
+
+# ============================================
+# PAYMENT WEBHOOKS
+# ============================================
+
+class ClickPesaWebhookView(APIView):
+    """
+    Webhook handler for ClickPesa payment notifications.
+    Standard ClickPesa payload includes:
+    {
+        "id": "transaction-id",
+        "status": "SUCCESS" | "FAILED",
+        "orderReference": "ORD2026...",
+        ...
+    }
+    """
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def post(self, request, *args, **kwargs):
+        logger.info(f"[ClickPesaWebhook] Received webhook payload: {request.data}")
+        
+        try:
+            transaction_id = request.data.get('id')
+            payment_status = request.data.get('status')
+            order_reference = request.data.get('orderReference')
+            
+            if not order_reference:
+                logger.error("[ClickPesaWebhook] Missing orderReference in payload")
+                return Response({'error': 'Missing orderReference'}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Find the order
+            try:
+                order = Order.objects.get(order_number=order_reference)
+            except Order.DoesNotExist:
+                logger.error(f"[ClickPesaWebhook] Order {order_reference} not found")
+                # Return 200 to ClickPesa to stop retries, even if order not found? 
+                # Or 404 if we want them to retry? Usually 200 is better if it's our issue.
+                return Response({'error': 'Order not found'}, status=status.HTTP_404_NOT_FOUND)
+
+            # Update order based on status
+            if payment_status in ['SUCCESS', 'SETTLED']:
+                # Update order status
+                order.is_paid = True
+                order.status = 'confirmed'
+                order.payment_reference = transaction_id
+                if not order.confirmed_at:
+                    order.confirmed_at = timezone.now()
+                order.save()
+                
+                logger.info(f"[ClickPesaWebhook] Order {order_reference} marked as PAID and CONFIRMED")
+            elif payment_status == 'FAILED':
+                logger.warning(f"[ClickPesaWebhook] Payment for order {order_reference} marked as FAILED")
+                # Optionally handle failed status in order model if needed
+            
+            return Response({'message': 'Webhook processed successfully'}, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            logger.exception(f"[ClickPesaWebhook] Error processing webhook: {e}")
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 

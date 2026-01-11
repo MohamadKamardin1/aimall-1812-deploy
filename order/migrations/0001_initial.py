@@ -87,7 +87,7 @@ class Migration(migrations.Migration):
             },
         ),
         migrations.CreateModel(
-            name='ordertatusUpdate',
+            name='OrderStatusUpdate',
             fields=[
                 ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
                 ('old_status', models.CharField(choices=[('pending', 'Pending'), ('confirmed', 'Confirmed'), ('preparing', 'Preparing'), ('ready', 'Ready for Pickup'), ('assigned', 'Assigned to Driver'), ('picked_up', 'Picked Up'), ('on_the_way', 'On the Way'), ('delivered', 'Delivered'), ('cancelled', 'Cancelled'), ('failed', 'Delivery Failed')], max_length=20)),

@@ -55,17 +55,37 @@ def get_market_location(order):
     
     try:
         first_item = order.items.first()
-        vendor = first_item.product_variant.vendor
+        variant = first_item.product_variant
+        vendor = variant.vendor
         
-        # Get vendor's market
+        # Get vendor's market and zone
+        market_info = {
+            'name': 'Market',
+            'latitude': -6.8,
+            'longitude': 39.2,
+            'address': 'Market Location',
+            'market_line': variant.market_zone.name if variant.market_zone else ''
+        }
+        
         if hasattr(vendor, 'market') and vendor.market:
             market = vendor.market
-            return {
+            market_info.update({
                 'name': market.name,
                 'latitude': float(market.latitude) if market.latitude else -6.8,
                 'longitude': float(market.longitude) if market.longitude else 39.2,
                 'address': market.address or market.location or 'Market Location'
-            }
+            })
+        elif variant.market_zone and variant.market_zone.market:
+            market = variant.market_zone.market
+            market_info.update({
+                'name': market.name,
+                'latitude': float(market.latitude) if market.latitude else -6.8,
+                'longitude': float(market.longitude) if market.longitude else 39.2,
+                'address': market.address or market.location or 'Market Location'
+            })
+            
+        return market_info
+            
     except Exception as e:
         logger.warning(f"Error getting market location: {e}")
     
@@ -74,7 +94,8 @@ def get_market_location(order):
         'name': 'Market',
         'latitude': -6.8,
         'longitude': 39.2,
-        'address': 'Default Market Location'
+        'address': 'Default Market Location',
+        'market_line': ''
     }
 
 

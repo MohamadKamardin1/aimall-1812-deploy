@@ -1,2 +1,9 @@
 venv/
-.env
+# .env
+
+aimall-react-version/
+driver_app/
+frontend/
+
+
+.continue/

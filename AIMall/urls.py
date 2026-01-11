@@ -28,5 +28,10 @@ urlpatterns = [
     path('api/order/', include('order.urls')),
     path('api/v1/', include('api.urls')),  # Mobile API endpoints
     path('dashboard/', include('admin_dashboard.urls')),
+
+    # NEW: API for React admin dashboard - CORRECTED
+    path('api/v2/admin/', include('admin_dashboard_api.urls')),
+
+
     path('vendor/', include('vendor_dashboard.urls')),
 ]

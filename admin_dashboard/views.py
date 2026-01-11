@@ -14,7 +14,7 @@ from accounts.models import SecurityQuestion, User, Customer, UserSecurityAnswer
 from location.models import DeliveryZone
 from products.models import Category, MeasurementUnitType, ProductAddonMapping, ProductTemplate, ProductVariant, MeasurementUnit, GlobalSetting, UnitPrice
 from markets.models import Market, MarketZone
-from order.models import Order, OrderItem, ordertatusUpdate
+from order.models import Order, OrderItem, OrderStatusUpdate
 
 from django.contrib.auth import authenticate, login
 from django.shortcuts import render, redirect
@@ -4278,7 +4278,7 @@ def update_order_status(request, order_id):
             
             # Create status update record
             # Create status update
-            ordertatusUpdate.objects.create(
+            OrderStatusUpdate.objects.create(
                 order=order,
                 old_status=old_status,
                 new_status=new_status,
@@ -4308,7 +4308,7 @@ def assign_driver(request, order_id):
                 order.save()
                 
                 # Create status update
-                ordertatusUpdate.objects.create(
+                OrderStatusUpdate.objects.create(
                     order=order,
                     old_status=order.status,
                     new_status='assigned',
@@ -4327,7 +4327,7 @@ def assign_driver(request, order_id):
             order.save()
             
             # Create status update
-            ordertatusUpdate.objects.create(
+            OrderStatusUpdate.objects.create(
                 order=order,
                 old_status='assigned',
                 new_status='ready',
@@ -4415,7 +4415,7 @@ def cancel_order(request, order_id):
             order.save()
             
             # Create status update
-            ordertatusUpdate.objects.create(
+            OrderStatusUpdate.objects.create(
                 order=order,
                 old_status=order.status,
                 new_status='cancelled',

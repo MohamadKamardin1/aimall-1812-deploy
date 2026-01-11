@@ -37,18 +37,30 @@ class GlobalSettingSerializer(serializers.ModelSerializer):
 class CategorySerializer(serializers.ModelSerializer):
     subcategories_count = serializers.SerializerMethodField()
     parent_name = serializers.CharField(source='parent.name', read_only=True)
+    image_url = serializers.SerializerMethodField()
     
     class Meta:
         model = Category
         fields = [
             'id', 'name', 'description', 'profit_percentage', 'parent', 'parent_name',
-            'typical_market_zones', 'is_active', 'image', 'sort_order', 
+            'typical_market_zones', 'is_active', 'image', 'image_url', 'sort_order', 
             'subcategories_count', 'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'subcategories_count']
     
     def get_subcategories_count(self, obj):
         return obj.subcategories.filter(is_active=True).count()
+
+    def get_image_url(self, obj):
+        try:
+            if not obj.image:
+                return None
+            url = getattr(obj.image, 'url', None)
+            if url:
+                return url
+            return str(obj.image)
+        except Exception:
+            return None
 
 class CategoryDetailSerializer(CategorySerializer):
     subcategories = CategorySerializer(many=True, read_only=True)
